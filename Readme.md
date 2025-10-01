@@ -10,6 +10,9 @@ Database : MySQL
 API: Django REST Framework (DRF)
 
 Your React application runs in the user's browser, providing the interactive user experience.
+
 When a user performs an action (like making a post or liking something), the React app sends a request to your Django REST Framework API.
+
 The Django backend receives this request, processes the logic (e.g., "save this new post"), and interacts with the MySQL database to store or retrieve data.
+
 Django then sends a response back to your React app, which updates the UI to show the new post or the updated like count without needing to reload the entire page.
