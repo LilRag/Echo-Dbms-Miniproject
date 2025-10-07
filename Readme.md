@@ -1,4 +1,4 @@
-Echo 
+# Echo 
 “Echo" is a social media blogging platform that enables users to create and manage their posts. It fosters interaction by allowing users to follow others, comment on posts, and express appreciation through likes. The platform also helps users discover new content via a personalized feed, trending topics, and updates from their friends.
 
 
