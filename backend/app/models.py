@@ -62,6 +62,27 @@ def initialize_database():
             name VARCHAR(100) UNIQUE NOT NULL
         );
         """,
+
+        # terenary relationship table ( bookmarks )
+
+        """
+        CREATE TABLE collections(
+        collection_id SERIAL PRIMARY KEY , 
+        name VARCHAR(100) NOT NULL , 
+        user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(user_id , name) -- one user cannot have two collections with same name 
+        );
+        """,
+        """
+        CREATE TABLE bookmarks (
+            user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+            post_id INTEGER NOT NULL REFERENCES posts(post_id) ON DELETE CASCADE, 
+            collection_id INTEGER NOT NULL REFERENCES collections(collection_id) ON DELETE CASCADE, 
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (user_id , post_id , collection_id ));
+            
+        """,
         """
         CREATE TABLE follows (
             follower_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
