@@ -1,7 +1,6 @@
-# scripts/initialize_db.py
+
 import psycopg2
 
-# Import your connection function
 from app.database import get_db_connection
 
 
@@ -81,7 +80,7 @@ def initialize_database():
             collection_id INTEGER NOT NULL REFERENCES collections(collection_id) ON DELETE CASCADE, 
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             PRIMARY KEY (user_id , post_id , collection_id ));
-            
+
         """,
         """
         CREATE TABLE follows (
