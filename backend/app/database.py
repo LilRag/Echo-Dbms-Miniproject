@@ -1,11 +1,26 @@
 # app/database.py
-import psycopg2
-from psycopg2.extras import RealDictCursor
-import os
+import mysql.connector 
+from mysql.connector import errorcode
 
-# Your connection string
-DATABASE_URL = "postgresql://myuser:mypassword@localhost:5432/ECHO_DB"
+DB_USER = "root"
+DB_PASSWORD ="anurag10"
+DB_HOST = "localhost"
+DB_NAME ="ECHO"
+
 
 def get_db_connection():
-    conn = psycopg2.connect(DATABASE_URL)
-    return conn
+    try:
+        conn = mysql.connector.connect(
+            user = DB_USER,
+            password = DB_PASSWORD,
+            host = DB_HOST,
+            database = DB_NAME
+        )
+        return conn
+    except mysql.connector.Error as err:
+        if err.errno == errorcode.ER_BAD_DB_ERROR:
+            print("Database does not exist ")
+        else:
+            print(err)
+        return None 
+    
