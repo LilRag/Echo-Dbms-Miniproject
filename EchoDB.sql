@@ -234,6 +234,56 @@ END; //
 
 DELIMITER ;
 
+-- function to get users follower count 
+DELIMITER //
+
+CREATE FUNCTION `get_user_follower_count`(p_user_id INT)
+RETURNS INT
+NOT DETERMINISTIC READS SQL DATA
+BEGIN
+    DECLARE follower_count INT;
+    SELECT COUNT(*)
+    INTO follower_count
+    FROM `follows`
+    WHERE `followed_id` = p_user_id;
+    RETURN follower_count;
+END //
+
+DELIMITER ;
+
+-- function to get users following count 
+DELIMITER //
+
+CREATE FUNCTION `get_user_following_count`(p_user_id INT)
+RETURNS INT
+NOT DETERMINISTIC READS SQL DATA
+BEGIN
+    DECLARE following_count INT;
+    SELECT COUNT(*)
+    INTO following_count
+    FROM `follows`
+    WHERE `follower_id` = p_user_id;
+    RETURN following_count;
+END //
+
+DELIMITER ;
+
+-- function to get Users total post count 
+DELIMITER //
+
+CREATE FUNCTION `get_user_post_count`(p_user_id INT)
+RETURNS INT
+NOT DETERMINISTIC READS SQL DATA
+BEGIN
+    DECLARE post_count INT;
+    SELECT COUNT(*)
+    INTO post_count
+    FROM `posts`
+    WHERE `user_id` = p_user_id;
+    RETURN post_count;
+END //
+
+DELIMITER ;
 
 
 
