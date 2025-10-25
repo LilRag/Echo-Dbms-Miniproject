@@ -10,7 +10,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8fafc; /* Slate 50 - A very light gray */
+            background-color: #f8fafc; /* Slate 50 */
         }
         .post-card {
             background-color: #ffffff;
@@ -26,12 +26,15 @@
             color: #059669; /* Green 600 */
             font-weight: 600;
         }
+        /* */
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body class="text-gray-800">
 
     <div class="flex min-h-screen">
-        <!-- SIDEBAR -->
         <aside class="w-64 flex-shrink-0 bg-white border-r border-gray-200 hidden md:block">
             <div class="p-6">
                 <h1 class="text-3xl font-extrabold text-gray-800">
@@ -39,7 +42,7 @@
                 </h1>
             </div>
             <nav class="mt-6 px-4">
-                <a href="#" class="sidebar-link active flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                <a href="#" onclick="showMainFeed()" class="sidebar-link active flex items-center px-4 py-3 text-gray-700 rounded-lg">
                     <i class="fas fa-home w-6 text-center"></i>
                     <span class="ml-4">Home</span>
                 </a>
@@ -57,41 +60,58 @@
                 </a>
             </nav>
             <div class="px-6 mt-8">
-                <button class="w-full bg-emerald-500 text-white font-semibold px-5 py-3 rounded-lg hover:bg-emerald-600 transition-colors duration-300 shadow-md shadow-emerald-500/20">
+                <a href="create-post.html" class="block w-full text-center bg-emerald-500 text-white font-semibold px-5 py-3 rounded-lg hover:bg-emerald-600 transition-colors duration-300 shadow-md shadow-emerald-500/20">
                     New Post
-                </button>
+                </a>
             </div>
         </aside>
 
-        <!-- MAIN CONTENT -->
         <div id="app" class="flex-1 p-6 md:p-10">
-            <header class="mb-8">
-                 <h2 class="text-3xl font-bold text-gray-900">Home Feed</h2>
-                 <p class="text-gray-500 mt-1">See the latest thoughts from the community.</p>
+            
+        
+            <header id="feed-header" class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900">Home Feed</h2>
+                <p class="text-gray-500 mt-1">See the latest thoughts from the community.</p>
             </header>
 
             <main>
                 <div id="posts-container" class="space-y-8 max-w-2xl mx-auto">
-                    <!-- Loading Indicator -->
                     <div id="loading-indicator" class="text-center py-20">
                         <i class="fas fa-spinner fa-spin fa-3x text-gray-400"></i>
                         <p class="text-gray-500 mt-4 text-lg">Loading latest posts...</p>
                     </div>
-                    <!-- Posts will be dynamically inserted here -->
-                </div>
+                    </div>
+
+                <div id="post-detail-container" class="hidden max-w-2xl mx-auto">
+                    </div>
+
             </main>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            
+            const API_BASE_URL = 'http://127.0.0.1:8000';
+            const CURRENT_USER_ID = 1; // Assuming Alice is logged in
+
             const postsContainer = document.getElementById('posts-container');
             const loadingIndicator = document.getElementById('loading-indicator');
-            const API_BASE_URL = 'http://127.0.0.1:8000'; // Your FastAPI backend URL
+            const postDetailContainer = document.getElementById('post-detail-container');
+            const feedHeader = document.getElementById('feed-header');
 
+            
+            // --- MODIFIED: fetchPosts ---
             async function fetchPosts() {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/posts/`);
+                    loadingIndicator.style.display = 'block';
+                    postsContainer.innerHTML = '';
+
+                    // --- CHANGE HERE ---
+                    // Added query params to match your `get_all_posts` procedure
+                    const response = await fetch(`${API_BASE_URL}/posts/?limit=20&offset=0`); 
+                    // --- END CHANGE ---
+
                     if (!response.ok) {
                         throw new Error(`HTTP error! Status: ${response.status}`);
                     }
@@ -103,43 +123,55 @@
                     postsContainer.innerHTML = `
                         <div class="text-center bg-red-50 border border-red-200 text-red-700 px-4 py-4 rounded-lg">
                             <strong class="font-bold">Error:</strong>
-                            <span class="block sm:inline">Could not load posts. Please ensure the backend server is running correctly.</span>
+                            <span class="block sm:inline">Could not load posts. Ensure backend is running.</span>
                         </div>`;
                 }
             }
 
+            // --- Original displayPosts function (MODIFIED for data structure) ---
             function displayPosts(posts) {
                 loadingIndicator.style.display = 'none';
                 postsContainer.innerHTML = '';
 
                 if (posts.length === 0) {
-                    postsContainer.innerHTML = `<p class="text-center text-gray-500 py-20 text-lg">No posts found. Be the first to create one!</p>`;
+                    postsContainer.innerHTML = `<p class="text-center text-gray-500 py-20 text-lg">No posts found.</p>`;
                     return;
                 }
 
                 posts.forEach(post => {
                     const postElement = document.createElement('article');
                     postElement.className = 'post-card p-6 rounded-xl shadow-sm';
-
                     const postDate = new Date(post.created_at).toLocaleDateString('en-US', {
                         year: 'numeric', month: 'long', day: 'numeric'
                     });
 
+                    // Your `get_all_posts` procedure returns `username` at the top level,
+                    // not nested in `owner`. We'll adjust the JS to match.
+                    const username = post.username || 'Unknown'; // Use username directly
+                    
                     postElement.innerHTML = `
                         <div class="flex items-center mb-4">
                             <div class="bg-gray-100 h-11 w-11 rounded-full flex items-center justify-center font-bold text-emerald-500 text-lg">
-                                ${post.owner.username.charAt(0).toUpperCase()}
+                                ${username.charAt(0).toUpperCase()}
                             </div>
                             <div class="ml-4">
-                                <p class="font-semibold text-gray-900">${post.owner.username}</p>
+                                <p class="font-semibold text-gray-900">${username}</p>
                                 <p class="text-sm text-gray-500">${postDate}</p>
                             </div>
                         </div>
-                        <a href="#" class="text-2xl font-bold text-gray-800 hover:text-emerald-600 transition-colors duration-300 leading-tight">${post.title}</a>
-                        <p class="mt-3 text-gray-600 leading-relaxed">${post.content}</p>
+                        
+                        <a href="#" onclick="event.preventDefault(); showPostDetails(${post.post_id})" 
+                           class="text-2xl font-bold text-gray-800 hover:text-emerald-600 transition-colors duration-300 leading-tight">
+                           ${post.title}
+                        </a>
+                        
+                        <p class="mt-3 text-gray-600 leading-relaxed">${post.content.substring(0, 150)}...</p>
+                        
                         <div class="mt-5 flex items-center text-gray-500 text-sm space-x-6 border-t border-gray-200 pt-4">
-                            <button class="flex items-center hover:text-red-500 transition-colors duration-300">
-                                <i class="far fa-heart mr-2"></i> ${post.likes_count} Likes
+                            <button onclick="toggleLike(${post.post_id}, this, false)" 
+                                    class="flex items-center hover:text-red-500 transition-colors duration-300">
+                                <i class="far fa-heart mr-2"></i> 
+                                <span class="like-count">${post.likes_count}</span>&nbsp;Likes
                             </button>
                             <div class="flex items-center">
                                 <i class="far fa-comment-dots mr-2"></i> ${post.comments_count || 0} Comments
@@ -152,6 +184,202 @@
                     postsContainer.appendChild(postElement);
                 });
             }
+            
+            // --- NEW: Show/Hide View Functions ---
+            window.showMainFeed = function() {
+                postDetailContainer.classList.add('hidden');
+                feedHeader.classList.remove('hidden');
+                postsContainer.classList.remove('hidden');
+                fetchPosts(); 
+            }
+
+            window.showPostDetails = async function(post_id) {
+                postsContainer.classList.add('hidden');
+                feedHeader.classList.add('hidden');
+                postDetailContainer.classList.remove('hidden');
+                postDetailContainer.innerHTML = `<div class="text-center py-20"><i class="fas fa-spinner fa-spin fa-3x text-gray-400"></i></div>`;
+
+                try {
+                    // This fetch matches your `get_post_details` procedure perfectly
+                    const [postRes, commentsRes] = await Promise.all([
+                        fetch(`${API_BASE_URL}/posts/${post_id}?user_id=${CURRENT_USER_ID}`),
+                        // This fetch will use your new `sp_get_post_comments` procedure
+                        fetch(`${API_BASE_URL}/posts/${post_id}/comments`) 
+                    ]);
+
+                    if (!postRes.ok || !commentsRes.ok) {
+                        throw new Error('Failed to load post details or comments.');
+                    }
+
+                    const post = await postRes.json();
+                    const comments = await commentsRes.json();
+                    
+                    // The post procedure returns a list (even if 1 item), so grab the first
+                    displayPostDetails(post[0], comments); 
+
+                } catch (error) {
+                    console.error("Failed to fetch post details:", error);
+                    postDetailContainer.innerHTML = `<p class="text-red-500">Error loading post.</p>`;
+                }
+            }
+            
+            // --- NEW: Render Post Detail View ---
+            function displayPostDetails(post, comments) {
+                const postDate = new Date(post.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'long', day: 'numeric'
+                });
+
+                const isLiked = post.is_liked_by_user;
+                const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
+                const likeButtonClass = isLiked ? 'text-red-500' : 'hover:text-red-500';
+                
+                // Your procedure returns `username` at the top level
+                const username = post.username || 'Unknown';
+
+                let postHTML = `
+                    <div>
+                        <button onclick="showMainFeed()" class="mb-6 text-emerald-600 hover:text-emerald-800 font-medium">
+                            <i class="fas fa-arrow-left mr-2"></i> Back to all posts
+                        </button>
+                        <div class="flex items-center mb-4">
+                            <div class="bg-gray-100 h-11 w-11 rounded-full flex items-center justify-center font-bold text-emerald-500 text-lg">
+                                ${username.charAt(0).toUpperCase()}
+                            </div>
+                            <div class="ml-4">
+                                <p class="font-semibold text-gray-900">${username}</p>
+                                <p class="text-sm text-gray-500">${postDate}</p>
+                            </div>
+                        </div>
+                        <h1 class="text-4xl font-extrabold text-gray-900 leading-tight mb-4">${post.title}</h1>
+                        <div classs="text-gray-700 text-lg leading-relaxed space-y-4">
+                            <p>${post.content.replace(/\n/g, '<br>')}</p>
+                        </div>
+                        <div class="mt-8 flex items-center text-gray-500 text-sm space-x-6 border-t border-b border-gray-200 py-4">
+                            <button onclick="toggleLike(${post.post_id}, this, true)" 
+                                    class="flex items-center transition-colors duration-300 ${likeButtonClass}">
+                                <i class="${likeIconClass} mr-2"></i> 
+                                <span class="like-count">${post.likes_count}</span>&nbsp;Likes
+                            </button>
+                            <div class="flex items-center">
+                                <i class="far fa-comment-dots mr-2"></i> ${post.comments_count || 0} Comments
+                            </div>
+                            <div class="flex items-center">
+                                <i class="far fa-eye mr-2"></i> ${post.views_count} Views
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                postHTML += `
+                    <div class="mt-8">
+                        <h3 class="text-xl font-bold mb-4">Add a Comment</h3>
+                        <form onsubmit="handleCommentSubmit(event, ${post.post_id})">
+                            <textarea id="comment-content" class="w-full p-3 border border-gray-300 rounded-lg" rows="4" placeholder="Write your thoughts..." required></textarea>
+                            <button type="submit" class="mt-3 bg-emerald-500 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-600 transition-colors">
+                                Post Comment
+                            </button>
+                        </form>
+                    </div>
+                `;
+
+                postHTML += `<div id="comments-list" class="mt-8 space-y-6">`;
+                if (comments.length === 0) {
+                    postHTML += `<p class="text-gray-500">No comments yet.</p>`;
+                } else {
+                    // Your `sp_get_post_comments` procedure returns `username`
+                    comments.forEach(comment => {
+                        const commentDate = new Date(comment.created_at).toLocaleDateString('en-US', {
+                            month: 'short', day: 'numeric'
+                        });
+                        postHTML += `
+                            <div class="flex">
+                                <div class="flex-shrink-0 bg-gray-100 h-10 w-10 rounded-full flex items-center justify-center font-bold text-gray-500 text-md">
+                                    ${comment.username.charAt(0).toUpperCase()}
+                                </div>
+                                <div class="ml-4">
+                                    <p class="font-semibold text-gray-900">
+                                        ${comment.username}
+                                        <span class="text-sm text-gray-500 font-normal ml-2">${commentDate}</span>
+                                    </p>
+                                    <p class="text-gray-700 mt-1">${comment.content}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                postHTML += `</div>`;
+                
+                postDetailContainer.innerHTML = postHTML;
+            }
+
+            // --- NEW: API Interaction Functions ---
+            window.toggleLike = async function(post_id, buttonElement, isDetailPage) {
+                try {
+                    // This will now call your `sp_toggle_like` procedure
+                    const response = await fetch(`${API_BASE_URL}/posts/${post_id}/like`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: CURRENT_USER_ID })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Like request failed');
+                    }
+                    
+                    const result = await response.json(); 
+                    // Your procedure returns a list, so grab the first item
+                    const likeState = result[0]; // e.g., { "liked": 1, "new_count": 3 }
+                    
+                    const countSpan = buttonElement.querySelector('.like-count');
+                    countSpan.textContent = likeState.new_count;
+
+                    if (isDetailPage) {
+                        const icon = buttonElement.querySelector('i');
+                        if (likeState.liked) {
+                            icon.className = 'fas fa-heart mr-2';
+                            buttonElement.classList.add('text-red-500');
+                            buttonElement.classList.remove('hover:text-red-500');
+                        } else {
+                            icon.className = 'far fa-heart mr-2';
+                            buttonElement.classList.remove('text-red-500');
+                            buttonElement.classList.add('hover:text-red-500');
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error("Failed to toggle like:", error);
+                }
+            }
+
+            window.handleCommentSubmit = async function(event, post_id) {
+                event.preventDefault();
+                const contentElement = document.getElementById('comment-content');
+                const content = contentElement.value;
+                if (!content) return;
+
+                try {
+                    // This will now call your `sp_create_comment` procedure
+                    const response = await fetch(`${API_BASE_URL}/posts/${post_id}/comments`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            user_id: CURRENT_USER_ID,
+                            content: content
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to post comment');
+                    }
+                    
+                    contentElement.value = '';
+                    showPostDetails(post_id); 
+
+                } catch (error) {
+                    console.error("Failed to post comment:", error);
+                    alert("Error: Could not post your comment.");
+                }
+            }
 
             fetchPosts();
         });
@@ -159,4 +387,3 @@
 
 </body>
 </html>
-

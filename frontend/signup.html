@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo | Sign Up</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="flex min-h-screen items-center justify-center">
+        <main class="w-full max-w-md bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-extrabold text-gray-800">
+                    <span class="text-emerald-500">Echo</span>
+                </h1>
+                <h2 class="text-2xl font-bold text-gray-900 mt-4">Create your account</h2>
+                <p class="text-gray-500 mt-1">Join the community.</p>
+            </div>
+
+            <form id="signup-form">
+                <div class="mb-5">
+                    <label for="username" class="block text-md font-semibold text-gray-800 mb-2">Username</label>
+                    <input type="text" id="username" name="username" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                </div>
+
+                <div class="mb-5">
+                    <label for="email" class="block text-md font-semibold text-gray-800 mb-2">Email</label>
+                    <input type="email" id="email" name="email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                </div>
+                
+                <div class="mb-6">
+                    <label for="password" class="block text-md font-semibold text-gray-800 mb-2">Password</label>
+                    <input type="password" id="password" name="password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
+                </div>
+
+                <div id="status-message" class="hidden mb-4"></div>
+
+                <div>
+                    <button type="submit" id="submit-button" class="w-full px-6 py-3 rounded-lg bg-emerald-500 text-white text-lg font-semibold hover:bg-emerald-600 transition-colors">
+                        Sign Up
+                    </button>
+                </div>
+
+                <p class="text-center text-gray-500 mt-6">
+                    Already have an account? 
+                    <a href="login.html" class="font-medium text-emerald-600 hover:text-emerald-700">Log in</a>
+                </p>
+            </form>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const signupForm = document.getElementById('signup-form');
+            const statusMessage = document.getElementById('status-message');
+            const submitButton = document.getElementById('submit-button');
+            const API_BASE_URL = 'http://127.0.0.1:8000';
+
+            signupForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const username = document.getElementById('username').value;
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+
+                // Disable button
+                submitButton.disabled = true;
+                submitButton.textContent = 'Creating account...';
+                statusMessage.classList.add('hidden');
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/users/`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username: username,
+                            email: email,
+                            password: password 
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        // FastAPI validation error is often in errorData.detail
+                        throw new Error(errorData.detail || 'Failed to create account');
+                    }
+
+                    // Success
+                    statusMessage.innerHTML = `
+                        <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
+                            <strong>Success!</strong> Your account has been created. Redirecting to login...
+                        </div>`;
+                    statusMessage.classList.remove('hidden');
+                    signupForm.reset();
+                    
+                    // Redirect to the login page (which we'll create next)
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 2000);
+
+                } catch (error) {
+                    statusMessage.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                            <strong>Error:</strong> ${error.message}
+                        </div>`;
+                    statusMessage.classList.remove('hidden');
+                    
+                    // Re-enable button
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Sign Up';
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>
