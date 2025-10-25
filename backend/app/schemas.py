@@ -19,9 +19,12 @@ class PostBase(BaseModel):
     title: str
     content: str
 
-class PostCreate(PostBase):
-    pass
+class PostCreate(BaseModel):
+    title: str
+    content: str
+    user_id: int # In a real app, you'd get this from the auth token
 
+    
 class Post(PostBase):
     post_id: int
     created_at: datetime
@@ -114,5 +117,9 @@ class PostViews(BaseModel):
 
 
 
+class LikeRequest(BaseModel):
+    user_id: int
 
-
+class CommentCreate(BaseModel):
+    user_id: int
+    content: str
