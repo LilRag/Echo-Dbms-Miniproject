@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo | User Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .post-card {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+        }
+        /* Style for the profile stats */
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1e293b; /* Slate 800 */
+        }
+        .stat-label {
+            font-size: 0.875rem;
+            color: #64748b; /* Slate 500 */
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="flex min-h-screen">
+        <aside class="w-64 flex-shrink-0 bg-white border-r border-gray-200 hidden md:block">
+            <div class="p-6">
+                <h1 class="text-3xl font-extrabold text-gray-800">
+                    <span class="text-emerald-500">Echo</span>
+                </h1>
+            </div>
+            <nav class="mt-6 px-4">
+                <a href="index.html" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-home w-6 text-center"></i> <span class="ml-4">Home</span>
+                </a>
+                <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg mt-2">
+                    <i class="fas fa-compass w-6 text-center"></i> <span class="ml-4">Explore</span>
+                </a>
+                <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg mt-2">
+                    <i class="fas fa-bell w-6 text-center"></i> <span class="ml-4">Notifications</span>
+                </a>
+                <a href="#" id="sidebar-profile-link" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg mt-2">
+                    <i class="fas fa-user w-6 text-center"></i> <span class="ml-4">Profile</span>
+                </a>
+                
+                <div class="border-t my-4"></div>
+                
+            </nav>
+            <div class="px-6 mt-8">
+                <a href="create-post.html" class="block w-full text-center bg-emerald-500 text-white font-semibold px-5 py-3 rounded-lg hover:bg-emerald-600 transition-colors">
+                    New Post
+                </a>
+            </div>
+        </aside>
+
+        <div class="flex-1 p-6 md:p-10">
+            <div id="profile-header" class="max-w-2xl mx-auto mb-8 p-8 bg-white rounded-xl shadow-sm border border-gray-200">
+                <div id="profile-loading" class="text-center">
+                    <i class="fas fa-spinner fa-spin fa-2x text-gray-400"></i>
+                </div>
+                <div id="profile-content" class="hidden">
+                    <div class="flex items-center">
+                            <div id="profile-avatar" class="bg-gray-100 h-20 w-20 rounded-full flex items-center justify-center font-bold text-emerald-500 text-4xl">
+                                </div>
+                            <div class="ml-6 flex-1"> <h2 id="profile-username" class="text-3xl font-bold text-gray-900">Username</h2>
+                                <p id="profile-email" class="text-md text-gray-500">email@example.com</p>
+                            </div>
+                            <div id="follow-button-container" class="ml-4">
+                                </div>
+                        </div>
+                    <div class="grid grid-cols-3 gap-4 mt-6 border-t border-gray-200 pt-6">
+                        <div class="stat-item">
+                            <div id="profile-post-count" class="stat-value">0</div>
+                            <div class="stat-label">Posts</div>
+                        </div>
+                        <div class="stat-item">
+                            <div id="profile-follower-count" class="stat-value">0</div>
+                            <div class="stat-label">Followers</div>
+                        </div>
+                        <div class="stat-item">
+                            <div id="profile-following-count" class="stat-value">0</div>
+                            <div class="stat-label">Following</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <main class="max-w-2xl mx-auto">
+                <h3 class="text-2xl font-bold text-gray-900 mb-6">Posts</h3>
+                <div id="posts-container" class="space-y-8">
+                    </div>
+            </main>
+        </div>
+    </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+        
+        // --- 1. Get User IDs ---
+        // Use parseFloat to ensure they are numbers for comparison
+        const LOGGED_IN_USER_ID = parseFloat(localStorage.getItem('current_user_id'));
+        const urlParams = new URLSearchParams(window.location.search);
+        const USER_ID_TO_FETCH = parseFloat(urlParams.get('user_id')) || LOGGED_IN_USER_ID; 
+
+        // Update sidebar "Profile" link
+        if(LOGGED_IN_USER_ID) {
+            document.getElementById('sidebar-profile-link').href = `profile.html?user_id=${LOGGED_IN_USER_ID}`;
+        }
+
+        // --- 2. Selectors ---
+        const profileHeader = document.getElementById('profile-header');
+        const profileLoading = document.getElementById('profile-loading');
+        const profileContent = document.getElementById('profile-content');
+        const postsContainer = document.getElementById('posts-container');
+        const followButtonContainer = document.getElementById('follow-button-container');
+
+        // --- 3. Function to fetch profile data ---
+        async function fetchProfileData() {
+            if (!USER_ID_TO_FETCH) {
+                profileHeader.innerHTML = '<p class="text-red-500 text-center">No user ID specified. Please <a href="login.html" class="font-bold">log in</a>.</p>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/users/${USER_ID_TO_FETCH}`);
+                if (!response.ok) throw new Error('Could not fetch user profile');
+                
+                const profile = await response.json();
+                
+                // Populate profile header
+                document.getElementById('profile-avatar').textContent = profile.username.charAt(0).toUpperCase();
+                document.getElementById('profile-username').textContent = profile.username;
+                document.getElementById('profile-email').textContent = profile.email;
+                document.getElementById('profile-post-count').textContent = profile.post_count;
+                document.getElementById('profile-follower-count').textContent = profile.follower_count;
+                document.getElementById('profile-following-count').textContent = profile.following_count;
+
+                // Show content
+                profileLoading.classList.add('hidden');
+                profileContent.classList.remove('hidden');
+
+                // --- NEW: After fetching profile, check follow status ---
+                // Only show the button if you are logged in AND it's not your own profile
+                if (LOGGED_IN_USER_ID && LOGGED_IN_USER_ID !== USER_ID_TO_FETCH) {
+                    fetchFollowStatus();
+                }
+
+            } catch (error) {
+                console.error(error);
+                profileHeader.innerHTML = `<p class="text-red-500 text-center">${error.message}</p>`;
+            }
+        }
+
+        // --- 4. NEW: Function to check follow status ---
+        async function fetchFollowStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/users/${USER_ID_TO_FETCH}/is-following?follower_id=${LOGGED_IN_USER_ID}`);
+                if (!response.ok) throw new Error('Could not check follow status');
+                
+                const data = await response.json(); // e.g., {'is_following': 1}
+                renderFollowButton(data.is_following);
+            } catch (error) {
+                console.error(error);
+                followButtonContainer.innerHTML = `<p class="text-red-500 text-sm">Error</p>`;
+            }
+        }
+
+        // --- 5. NEW: Function to render the follow button ---
+        function renderFollowButton(isFollowing) {
+            if (isFollowing) {
+                followButtonContainer.innerHTML = `
+                    <button id="follow-toggle-btn" class="px-5 py-2 rounded-lg bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 transition-colors">
+                        Following
+                    </button>
+                `;
+            } else {
+                followButtonContainer.innerHTML = `
+                    <button id="follow-toggle-btn" class="px-5 py-2 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition-colors">
+                        Follow
+                    </button>
+                `;
+            }
+            // Add the event listener after the button is in the DOM
+            document.getElementById('follow-toggle-btn').addEventListener('click', handleFollowToggle);
+        }
+
+        // --- 6. NEW: Function to handle the follow/unfollow click ---
+        async function handleFollowToggle() {
+            const button = document.getElementById('follow-toggle-btn');
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/users/${USER_ID_TO_FETCH}/follow`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: LOGGED_IN_USER_ID })
+                });
+
+                if (!response.ok) throw new Error('Follow request failed');
+                
+                const data = await response.json(); // e.g., {'is_following': 0, 'new_follower_count': 5}
+                
+                // Re-render the button with the new state
+                renderFollowButton(data.is_following);
+                
+                // Update the follower count on the page
+                document.getElementById('profile-follower-count').textContent = data.new_follower_count;
+
+            } catch (error) {
+                console.error(error);
+            } finally {
+                // Re-enable the button whether it succeeded or failed
+                button.disabled = false;
+            }
+        }
+
+        // --- 7. Function to fetch user's posts (Unchanged) ---
+        async function fetchUserPosts() {
+            if (!USER_ID_TO_FETCH) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/users/${USER_ID_TO_FETCH}/posts`);
+                if (!response.ok) throw new Error('Could not fetch user posts');
+
+                const posts = await response.json();
+                displayPosts(posts);
+            } catch (error) {
+                console.error(error);
+                postsContainer.innerHTML = `<p class="text-red-500 text-center">${error.message}</p>`;
+            }
+        }
+
+        // --- 8. Function to display posts (Unchanged) ---
+        function displayPosts(posts) {
+            postsContainer.innerHTML = '';
+            if (posts.length === 0) {
+                postsContainer.innerHTML = `<p class="text-center text-gray-500 py-10">This user hasn't posted anything yet.</p>`;
+                return;
+            }
+
+            posts.forEach(post => {
+                const postElement = document.createElement('article');
+                postElement.className = 'post-card p-6 rounded-xl shadow-sm';
+                const postDate = new Date(post.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'long', day: 'numeric'
+                });
+
+                // This logic is slightly different from index.html as we don't need the post author info
+                postElement.innerHTML = `
+                    <a href="index.html" onclick="event.preventDefault(); window.location.href='index.html?post_id=${post.post_id}'" 
+                       class="text-2xl font-bold text-gray-800 hover:text-emerald-600">${post.title}</a>
+                    <p class="text-sm text-gray-500 mt-1">${postDate}</p>
+                    <p class="mt-3 text-gray-600">${post.content.substring(0, 150)}...</p>
+                    <div class="mt-5 flex items-center text-gray-500 text-sm space-x-6 border-t border-gray-200 pt-4">
+                        <span class="flex items-center"><i class="far fa-heart mr-2"></i> ${post.likes_count} Likes</span>
+                        <span class="flex items-center"><i class="far fa-comment-dots mr-2"></i> ${post.comments_count || 0} Comments</span>
+                        <span class="flex items-center"><i class="far fa-eye mr-2"></i> ${post.views_count} Views</span>
+                    </div>
+                `;
+                postsContainer.appendChild(postElement);
+            });
+        }
+
+        // --- 9. Initial Page Load ---
+        fetchProfileData();
+        fetchUserPosts();
+    });
+</script>
+</body>
+</html>

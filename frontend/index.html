@@ -30,7 +30,31 @@
         .hidden {
             display: none;
         }
-    </style>
+        /* In index.html, inside the <style> tag */
+        .modal-open {
+            overflow: hidden; /* Prevents background scrolling when modal is open */
+        }
+
+        /* Style for the collection list items */
+        #collections-list li label {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            font-size: 1rem;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+        }
+        #collections-list li label:hover {
+            background-color: #f8fafc; /* Slate 50 */
+        }
+        #collections-list li input[type="checkbox"] {
+            width: 1.25rem;
+            height: 1.25rem;
+            margin-right: 0.75rem;
+            accent-color: #10b981; /* Emerald 500 */
+        }
+            </style>
 </head>
 <body class="text-gray-800">
 
@@ -46,7 +70,7 @@
                     <i class="fas fa-home w-6 text-center"></i>
                     <span class="ml-4">Home</span>
                 </a>
-                <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg mt-2">
+                <a href="./explore.html" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg mt-2">
                     <i class="fas fa-compass w-6 text-center"></i>
                     <span class="ml-4">Explore</span>
                 </a>
@@ -54,7 +78,7 @@
                     <i class="fas fa-bell w-6 text-center"></i>
                     <span class="ml-4">Notifications</span>
                 </a>
-                 <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg mt-2">
+                 <a href="./profile.html" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg mt-2">
                     <i class="fas fa-user w-6 text-center"></i>
                     <span class="ml-4">Profile</span>
                 </a>
@@ -89,301 +113,459 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            
-            const API_BASE_URL = 'http://127.0.0.1:8000';
-            const CURRENT_USER_ID = 1; // Assuming Alice is logged in
+   <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+        const CURRENT_USER_ID = localStorage.getItem('current_user_id') || 1;
 
-            const postsContainer = document.getElementById('posts-container');
-            const loadingIndicator = document.getElementById('loading-indicator');
-            const postDetailContainer = document.getElementById('post-detail-container');
-            const feedHeader = document.getElementById('feed-header');
+        // --- Main Page Selectors ---
+        const postsContainer = document.getElementById('posts-container');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const postDetailContainer = document.getElementById('post-detail-container');
+        const feedHeader = document.getElementById('feed-header');
+        
+        // --- NEW: Modal Selectors ---
+        const bookmarkModal = document.getElementById('bookmark-modal');
+        const collectionsList = document.getElementById('collections-list');
+        const collectionsLoading = document.getElementById('collections-loading');
+        const createCollectionForm = document.getElementById('create-collection-form');
+        const newCollectionNameInput = document.getElementById('new-collection-name');
+        
+        // --- NEW: Global state for the modal ---
+        let currentPostIdToBookmark = null;
 
-            
-            // --- MODIFIED: fetchPosts ---
-            async function fetchPosts() {
-                try {
-                    loadingIndicator.style.display = 'block';
-                    postsContainer.innerHTML = '';
 
-                    // --- CHANGE HERE ---
-                    // Added query params to match your `get_all_posts` procedure
-                    const response = await fetch(`${API_BASE_URL}/posts/?limit=20&offset=0`); 
-                    // --- END CHANGE ---
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    const posts = await response.json();
-                    displayPosts(posts);
-                } catch (error) {
-                    console.error("Failed to fetch posts:", error);
-                    loadingIndicator.style.display = 'none';
-                    postsContainer.innerHTML = `
-                        <div class="text-center bg-red-50 border border-red-200 text-red-700 px-4 py-4 rounded-lg">
-                            <strong class="font-bold">Error:</strong>
-                            <span class="block sm:inline">Could not load posts. Ensure backend is running.</span>
-                        </div>`;
-                }
-            }
-
-            // --- Original displayPosts function (MODIFIED for data structure) ---
-            function displayPosts(posts) {
-                loadingIndicator.style.display = 'none';
+        // --- Post Feed Functions ---
+        async function fetchPosts() {
+            try {
+                loadingIndicator.style.display = 'block';
                 postsContainer.innerHTML = '';
-
-                if (posts.length === 0) {
-                    postsContainer.innerHTML = `<p class="text-center text-gray-500 py-20 text-lg">No posts found.</p>`;
-                    return;
+                
+                // Calls the /feed endpoint for the logged-in user
+                const response = await fetch(`${API_BASE_URL}/feed?user_id=${CURRENT_USER_ID}&limit=20&offset=0`); 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
                 }
-
-                posts.forEach(post => {
-                    const postElement = document.createElement('article');
-                    postElement.className = 'post-card p-6 rounded-xl shadow-sm';
-                    const postDate = new Date(post.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric', month: 'long', day: 'numeric'
-                    });
-
-                    // Your `get_all_posts` procedure returns `username` at the top level,
-                    // not nested in `owner`. We'll adjust the JS to match.
-                    const username = post.username || 'Unknown'; // Use username directly
-                    
-                    postElement.innerHTML = `
-                        <div class="flex items-center mb-4">
-                            <div class="bg-gray-100 h-11 w-11 rounded-full flex items-center justify-center font-bold text-emerald-500 text-lg">
-                                ${username.charAt(0).toUpperCase()}
-                            </div>
-                            <div class="ml-4">
-                                <p class="font-semibold text-gray-900">${username}</p>
-                                <p class="text-sm text-gray-500">${postDate}</p>
-                            </div>
-                        </div>
-                        
-                        <a href="#" onclick="event.preventDefault(); showPostDetails(${post.post_id})" 
-                           class="text-2xl font-bold text-gray-800 hover:text-emerald-600 transition-colors duration-300 leading-tight">
-                           ${post.title}
-                        </a>
-                        
-                        <p class="mt-3 text-gray-600 leading-relaxed">${post.content.substring(0, 150)}...</p>
-                        
-                        <div class="mt-5 flex items-center text-gray-500 text-sm space-x-6 border-t border-gray-200 pt-4">
-                            <button onclick="toggleLike(${post.post_id}, this, false)" 
-                                    class="flex items-center hover:text-red-500 transition-colors duration-300">
-                                <i class="far fa-heart mr-2"></i> 
-                                <span class="like-count">${post.likes_count}</span>&nbsp;Likes
-                            </button>
-                            <div class="flex items-center">
-                                <i class="far fa-comment-dots mr-2"></i> ${post.comments_count || 0} Comments
-                            </div>
-                            <div class="flex items-center">
-                                <i class="far fa-eye mr-2"></i> ${post.views_count} Views
-                            </div>
-                        </div>
-                    `;
-                    postsContainer.appendChild(postElement);
-                });
+                const posts = await response.json();
+                displayPosts(posts);
+            } catch (error) {
+                console.error("Failed to fetch posts:", error);
+                loadingIndicator.style.display = 'none';
+                postsContainer.innerHTML = `<p class="text-red-500 text-center">Your feed is empty. Follow users to see their posts here!</p>`;
             }
-            
-            // --- NEW: Show/Hide View Functions ---
-            window.showMainFeed = function() {
-                postDetailContainer.classList.add('hidden');
-                feedHeader.classList.remove('hidden');
-                postsContainer.classList.remove('hidden');
-                fetchPosts(); 
+        }
+
+        function displayPosts(posts) {
+            loadingIndicator.style.display = 'none';
+            postsContainer.innerHTML = '';
+
+            if (posts.length === 0) {
+                postsContainer.innerHTML = `<p class="text-center text-gray-500 py-20">Your feed is empty. Follow users on the Explore page!</p>`;
+                return;
             }
 
-            window.showPostDetails = async function(post_id) {
-                postsContainer.classList.add('hidden');
-                feedHeader.classList.add('hidden');
-                postDetailContainer.classList.remove('hidden');
-                postDetailContainer.innerHTML = `<div class="text-center py-20"><i class="fas fa-spinner fa-spin fa-3x text-gray-400"></i></div>`;
-
-                try {
-                    // This fetch matches your `get_post_details` procedure perfectly
-                    const [postRes, commentsRes] = await Promise.all([
-                        fetch(`${API_BASE_URL}/posts/${post_id}?user_id=${CURRENT_USER_ID}`),
-                        // This fetch will use your new `sp_get_post_comments` procedure
-                        fetch(`${API_BASE_URL}/posts/${post_id}/comments`) 
-                    ]);
-
-                    if (!postRes.ok || !commentsRes.ok) {
-                        throw new Error('Failed to load post details or comments.');
-                    }
-
-                    const post = await postRes.json();
-                    const comments = await commentsRes.json();
-                    
-                    // The post procedure returns a list (even if 1 item), so grab the first
-                    displayPostDetails(post[0], comments); 
-
-                } catch (error) {
-                    console.error("Failed to fetch post details:", error);
-                    postDetailContainer.innerHTML = `<p class="text-red-500">Error loading post.</p>`;
-                }
-            }
-            
-            // --- NEW: Render Post Detail View ---
-            function displayPostDetails(post, comments) {
+            posts.forEach(post => {
+                const postElement = document.createElement('article');
+                postElement.className = 'post-card p-6 rounded-xl shadow-sm';
                 const postDate = new Date(post.created_at).toLocaleDateString('en-US', {
                     year: 'numeric', month: 'long', day: 'numeric'
                 });
-
-                const isLiked = post.is_liked_by_user;
-                const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
-                const likeButtonClass = isLiked ? 'text-red-500' : 'hover:text-red-500';
-                
-                // Your procedure returns `username` at the top level
                 const username = post.username || 'Unknown';
-
-                let postHTML = `
-                    <div>
-                        <button onclick="showMainFeed()" class="mb-6 text-emerald-600 hover:text-emerald-800 font-medium">
-                            <i class="fas fa-arrow-left mr-2"></i> Back to all posts
+                
+                postElement.innerHTML = `
+                    <div class="flex items-center mb-4">
+                        <div class="bg-gray-100 h-11 w-11 rounded-full flex items-center justify-center font-bold text-emerald-500 text-lg">
+                            ${username.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="ml-4">
+                            <a href="profile.html?user_id=${post.user_id}" class="font-semibold text-gray-900 hover:text-emerald-600">${username}</a>
+                            <p class="text-sm text-gray-500">${postDate}</p>
+                        </div>
+                    </div>
+                    
+                    <a href="#" onclick="event.preventDefault(); showPostDetails(${post.post_id})" 
+                       class="text-2xl font-bold text-gray-800 hover:text-emerald-600 transition-colors duration-300 leading-tight">
+                       ${post.title}
+                    </a>
+                    
+                    <p class="mt-3 text-gray-600 leading-relaxed">${post.content.substring(0, 150)}...</p>
+                    
+                    <div class="mt-5 flex items-center text-gray-500 text-sm space-x-6 border-t border-gray-200 pt-4">
+                        <button onclick="toggleLike(${post.post_id}, this, false)" 
+                                class="flex items-center hover:text-red-500 transition-colors duration-300">
+                            <i class="far fa-heart mr-2"></i> 
+                            <span class="like-count">${post.likes_count}</span>&nbsp;Likes
                         </button>
-                        <div class="flex items-center mb-4">
-                            <div class="bg-gray-100 h-11 w-11 rounded-full flex items-center justify-center font-bold text-emerald-500 text-lg">
-                                ${username.charAt(0).toUpperCase()}
+                        <div class="flex items-center">
+                            <i class="far fa-comment-dots mr-2"></i> ${post.comments_count || 0} Comments
+                        </div>
+                        <div class="flex items-center">
+                            <i class="far fa-eye mr-2"></i> ${post.views_count} Views
+                        </div>
+                        <div class="flex-1 flex justify-end">
+                            <button onclick="openBookmarkModal(${post.post_id})" 
+                                    class="flex items-center hover:text-emerald-600 transition-colors duration-300">
+                                <i class="far fa-bookmark text-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                postsContainer.appendChild(postElement);
+            });
+        }
+        
+        // --- Single Post Detail Functions ---
+        window.showMainFeed = function() {
+            postDetailContainer.classList.add('hidden');
+            feedHeader.classList.remove('hidden');
+            postsContainer.classList.remove('hidden');
+            // Clear post_id from URL
+            history.pushState(null, '', 'index.html');
+            fetchPosts(); 
+        }
+
+        window.showPostDetails = async function(post_id) {
+            postsContainer.classList.add('hidden');
+            feedHeader.classList.add('hidden');
+            postDetailContainer.classList.remove('hidden');
+            postDetailContainer.innerHTML = `<div class="text-center py-20"><i class="fas fa-spinner fa-spin fa-3x text-gray-400"></i></div>`;
+            // Add post_id to URL
+            history.pushState(null, '', `index.html?post_id=${post_id}`);
+
+            try {
+                const [postRes, commentsRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/posts/${post_id}?user_id=${CURRENT_USER_ID}`),
+                    fetch(`${API_BASE_URL}/posts/${post_id}/comments`) 
+                ]);
+
+                if (!postRes.ok || !commentsRes.ok) {
+                    throw new Error('Failed to load post details or comments.');
+                }
+
+                const post = await postRes.json();
+                const comments = await commentsRes.json();
+                displayPostDetails(post[0], comments); 
+
+            } catch (error) {
+                console.error("Failed to fetch post details:", error);
+                postDetailContainer.innerHTML = `<p class="text-red-500">Error loading post.</p>`;
+            }
+        }
+        
+        function displayPostDetails(post, comments) {
+            // (Your existing displayPostDetails function... no changes needed here)
+            // (It just needs to be included in the script)
+            const postDate = new Date(post.created_at).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+            });
+
+            const isLiked = post.is_liked_by_user;
+            const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
+            const likeButtonClass = isLiked ? 'text-red-500' : 'hover:text-red-500';
+            const username = post.username || 'Unknown';
+
+            let postHTML = `
+                <div>
+                    <button onclick="showMainFeed()" class="mb-6 text-emerald-600 hover:text-emerald-800 font-medium">
+                        <i class="fas fa-arrow-left mr-2"></i> Back to all posts
+                    </button>
+                    <div class="flex items-center mb-4">
+                        <div class="bg-gray-100 h-11 w-11 rounded-full flex items-center justify-center font-bold text-emerald-500 text-lg">
+                            ${username.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="ml-4">
+                            <a href="profile.html?user_id=${post.user_id}" class="font-semibold text-gray-900 hover:text-emerald-600">${username}</a>
+                            <p class="text-sm text-gray-500">${postDate}</p>
+                        </div>
+                    </div>
+                    <h1 class="text-4xl font-extrabold text-gray-900 leading-tight mb-4">${post.title}</h1>
+                    <div classs="text-gray-700 text-lg leading-relaxed space-y-4">
+                        <p>${post.content.replace(/\n/g, '<br>')}</p>
+                    </div>
+                    <div class="mt-8 flex items-center text-gray-500 text-sm space-x-6 border-t border-b border-gray-200 py-4">
+                        <button onclick="toggleLike(${post.post_id}, this, true)" 
+                                class="flex items-center transition-colors duration-300 ${likeButtonClass}">
+                            <i class="${likeIconClass} mr-2"></i> 
+                            <span class="like-count">${post.likes_count}</span>&nbsp;Likes
+                        </button>
+                        <div class="flex items-center">
+                            <i class="far fa-comment-dots mr-2"></i> ${post.comments_count || 0} Comments
+                        </div>
+                        <div class="flex items-center">
+                            <i class="far fa-eye mr-2"></i> ${post.views_count} Views
+                        </div>
+                        <div class="flex-1 flex justify-end">
+                            <button onclick="openBookmarkModal(${post.post_id})" 
+                                    class="flex items-center hover:text-emerald-600 transition-colors duration-300">
+                                <i class="far fa-bookmark text-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            postHTML += `
+                <div class="mt-8">
+                    <h3 class="text-xl font-bold mb-4">Add a Comment</h3>
+                    <form onsubmit="handleCommentSubmit(event, ${post.post_id})">
+                        <textarea id="comment-content" class="w-full p-3 border border-gray-300 rounded-lg" rows="4" placeholder="Write your thoughts..." required></textarea>
+                        <button type="submit" class="mt-3 bg-emerald-500 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-600 transition-colors">
+                            Post Comment
+                        </button>
+                    </form>
+                </div>
+            `;
+
+            postHTML += `<div id="comments-list" class="mt-8 space-y-6">`;
+            if (comments.length === 0) {
+                postHTML += `<p class="text-gray-500">No comments yet.</p>`;
+            } else {
+                comments.forEach(comment => {
+                    const commentDate = new Date(comment.created_at).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric'
+                    });
+                    postHTML += `
+                        <div class="flex">
+                            <div class="flex-shrink-0 bg-gray-100 h-10 w-10 rounded-full flex items-center justify-center font-bold text-gray-500 text-md">
+                                ${comment.username.charAt(0).toUpperCase()}
                             </div>
                             <div class="ml-4">
-                                <p class="font-semibold text-gray-900">${username}</p>
-                                <p class="text-sm text-gray-500">${postDate}</p>
+                                <p class="font-semibold text-gray-900">
+                                    <a href="profile.html?user_id=${comment.user_id}" class="hover:text-emerald-600">${comment.username}</a>
+                                    <span class="text-sm text-gray-500 font-normal ml-2">${commentDate}</span>
+                                </p>
+                                <p class="text-gray-700 mt-1">${comment.content}</p>
                             </div>
                         </div>
-                        <h1 class="text-4xl font-extrabold text-gray-900 leading-tight mb-4">${post.title}</h1>
-                        <div classs="text-gray-700 text-lg leading-relaxed space-y-4">
-                            <p>${post.content.replace(/\n/g, '<br>')}</p>
-                        </div>
-                        <div class="mt-8 flex items-center text-gray-500 text-sm space-x-6 border-t border-b border-gray-200 py-4">
-                            <button onclick="toggleLike(${post.post_id}, this, true)" 
-                                    class="flex items-center transition-colors duration-300 ${likeButtonClass}">
-                                <i class="${likeIconClass} mr-2"></i> 
-                                <span class="like-count">${post.likes_count}</span>&nbsp;Likes
-                            </button>
-                            <div class="flex items-center">
-                                <i class="far fa-comment-dots mr-2"></i> ${post.comments_count || 0} Comments
-                            </div>
-                            <div class="flex items-center">
-                                <i class="far fa-eye mr-2"></i> ${post.views_count} Views
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                postHTML += `
-                    <div class="mt-8">
-                        <h3 class="text-xl font-bold mb-4">Add a Comment</h3>
-                        <form onsubmit="handleCommentSubmit(event, ${post.post_id})">
-                            <textarea id="comment-content" class="w-full p-3 border border-gray-300 rounded-lg" rows="4" placeholder="Write your thoughts..." required></textarea>
-                            <button type="submit" class="mt-3 bg-emerald-500 text-white font-semibold px-5 py-2 rounded-lg hover:bg-emerald-600 transition-colors">
-                                Post Comment
-                            </button>
-                        </form>
-                    </div>
-                `;
+                    `;
+                });
+            }
+            postHTML += `</div>`;
+            
+            postDetailContainer.innerHTML = postHTML;
+        }
 
-                postHTML += `<div id="comments-list" class="mt-8 space-y-6">`;
-                if (comments.length === 0) {
-                    postHTML += `<p class="text-gray-500">No comments yet.</p>`;
+        // --- Like & Comment Functions (Unchanged) ---
+        window.toggleLike = async function(post_id, buttonElement, isDetailPage) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/posts/${post_id}/like`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: CURRENT_USER_ID })
+                });
+                if (!response.ok) throw new Error('Like request failed');
+                const result = await response.json(); 
+                const likeState = result[0]; 
+                const countSpan = buttonElement.querySelector('.like-count');
+                countSpan.textContent = likeState.new_count;
+                if (isDetailPage) {
+                    const icon = buttonElement.querySelector('i');
+                    if (likeState.liked) {
+                        icon.className = 'fas fa-heart mr-2';
+                        buttonElement.classList.add('text-red-500');
+                    } else {
+                        icon.className = 'far fa-heart mr-2';
+                        buttonElement.classList.remove('text-red-500');
+                    }
+                }
+            } catch (error) { console.error("Failed to toggle like:", error); }
+        }
+
+        window.handleCommentSubmit = async function(event, post_id) {
+            event.preventDefault();
+            const contentElement = document.getElementById('comment-content');
+            const content = contentElement.value;
+            if (!content) return;
+            try {
+                const response = await fetch(`${API_BASE_URL}/posts/${post_id}/comments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: CURRENT_USER_ID, content: content })
+                });
+                if (!response.ok) throw new Error('Failed to post comment');
+                contentElement.value = '';
+                showPostDetails(post_id); 
+            } catch (error) { console.error("Failed to post comment:", error); }
+        }
+
+        // --- NEW: Bookmark Modal Functions ---
+        
+        // 1. Open Modal
+        window.openBookmarkModal = function(post_id) {
+            currentPostIdToBookmark = post_id;
+            collectionsList.innerHTML = ''; // Clear old list
+            collectionsLoading.style.display = 'block'; // Show spinner
+            bookmarkModal.classList.remove('hidden');
+            document.body.classList.add('modal-open');
+            
+            // Fetch collections and check which ones this post is already in
+            fetchCollectionsAndStatus();
+        }
+
+        // 2. Close Modal
+        window.closeBookmarkModal = function() {
+            bookmarkModal.classList.add('hidden');
+            document.body.classList.remove('modal-open');
+            currentPostIdToBookmark = null;
+        }
+        
+        // 3. Fetch data for the modal
+        async function fetchCollectionsAndStatus() {
+            try {
+                // Run both API calls in parallel
+                const [collectionsRes, statusRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/users/${CURRENT_USER_ID}/collections`),
+                    fetch(`${API_BASE_URL}/posts/${currentPostIdToBookmark}/bookmark-status?user_id=${CURRENT_USER_ID}`)
+                ]);
+                
+                if (!collectionsRes.ok || !statusRes.ok) {
+                    throw new Error('Failed to load collections');
+                }
+                
+                const collections = await collectionsRes.json();
+                const bookmarkedInIds = await statusRes.json(); // This is a list of IDs, e.g., [1, 5]
+                
+                renderCollectionsList(collections, bookmarkedInIds);
+
+            } catch (error) {
+                console.error(error);
+                collectionsList.innerHTML = `<p class="text-red-500">Could not load collections.</p>`;
+            } finally {
+                collectionsLoading.style.display = 'none'; // Hide spinner
+            }
+        }
+        
+        // 4. Render the list of collections
+        function renderCollectionsList(collections, bookmarkedInIds) {
+            collectionsList.innerHTML = ''; // Clear list
+            if (collections.length === 0) {
+                collectionsList.innerHTML = `<p class="text-gray-500 text-center">No collections yet.</p>`;
+            }
+            
+            collections.forEach(collection => {
+                const isChecked = bookmarkedInIds.includes(collection.collection_id);
+                
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <label>
+                        <input type="checkbox" onchange="handleCollectionToggle(this, ${collection.collection_id})" ${isChecked ? 'checked' : ''}>
+                        <span class="font-medium">${collection.name}</span>
+                        <span class="ml-auto text-sm text-gray-500">${collection.post_count} posts</span>
+                    </label>
+                `;
+                collectionsList.appendChild(li);
+            });
+        }
+        
+        // 5. Handle checking/unchecking a collection
+        async function handleCollectionToggle(checkbox, collection_id) {
+            checkbox.disabled = true; // Disable while request is in flight
+            
+            try {
+                const url = `${API_BASE_URL}/bookmarks/`;
+                let method = '';
+                let body = {};
+
+                if (checkbox.checked) {
+                    // Save to collection
+                    method = 'POST';
+                    body = JSON.stringify({
+                        user_id: CURRENT_USER_ID,
+                        post_id: currentPostIdToBookmark,
+                        collection_id: collection_id
+                    });
                 } else {
-                    // Your `sp_get_post_comments` procedure returns `username`
-                    comments.forEach(comment => {
-                        const commentDate = new Date(comment.created_at).toLocaleDateString('en-US', {
-                            month: 'short', day: 'numeric'
-                        });
-                        postHTML += `
-                            <div class="flex">
-                                <div class="flex-shrink-0 bg-gray-100 h-10 w-10 rounded-full flex items-center justify-center font-bold text-gray-500 text-md">
-                                    ${comment.username.charAt(0).toUpperCase()}
-                                </div>
-                                <div class="ml-4">
-                                    <p class="font-semibold text-gray-900">
-                                        ${comment.username}
-                                        <span class="text-sm text-gray-500 font-normal ml-2">${commentDate}</span>
-                                    </p>
-                                    <p class="text-gray-700 mt-1">${comment.content}</p>
-                                </div>
-                            </div>
-                        `;
+                    // Remove from collection
+                    method = 'DELETE';
+                    // We send data in the URL query for a DELETE
+                    const params = new URLSearchParams({
+                        user_id: CURRENT_USER_ID,
+                        post_id: currentPostIdToBookmark,
+                        collection_id: collection_id
                     });
+                    url = `${API_BASE_URL}/bookmarks/?${params}`;
                 }
-                postHTML += `</div>`;
                 
-                postDetailContainer.innerHTML = postHTML;
-            }
-
-            // --- NEW: API Interaction Functions ---
-            window.toggleLike = async function(post_id, buttonElement, isDetailPage) {
-                try {
-                    // This will now call your `sp_toggle_like` procedure
-                    const response = await fetch(`${API_BASE_URL}/posts/${post_id}/like`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ user_id: CURRENT_USER_ID })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Like request failed');
-                    }
-                    
-                    const result = await response.json(); 
-                    // Your procedure returns a list, so grab the first item
-                    const likeState = result[0]; // e.g., { "liked": 1, "new_count": 3 }
-                    
-                    const countSpan = buttonElement.querySelector('.like-count');
-                    countSpan.textContent = likeState.new_count;
-
-                    if (isDetailPage) {
-                        const icon = buttonElement.querySelector('i');
-                        if (likeState.liked) {
-                            icon.className = 'fas fa-heart mr-2';
-                            buttonElement.classList.add('text-red-500');
-                            buttonElement.classList.remove('hover:text-red-500');
-                        } else {
-                            icon.className = 'far fa-heart mr-2';
-                            buttonElement.classList.remove('text-red-500');
-                            buttonElement.classList.add('hover:text-red-500');
-                        }
-                    }
-                    
-                } catch (error) {
-                    console.error("Failed to toggle like:", error);
+                const response = await fetch(url, {
+                    method: method,
+                    headers: method === 'POST' ? { 'Content-Type': 'application/json' } : {},
+                    body: method === 'POST' ? body : null
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to update bookmark');
                 }
+                
+            } catch (error) {
+                console.error(error);
+                // Revert checkbox on error
+                checkbox.checked = !checkbox.checked;
+            } finally {
+                checkbox.disabled = false; // Re-enable
             }
+        }
+        
+        // 6. Handle creating a new collection
+        createCollectionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newName = newCollectionNameInput.value;
+            if (!newName) return;
 
-            window.handleCommentSubmit = async function(event, post_id) {
-                event.preventDefault();
-                const contentElement = document.getElementById('comment-content');
-                const content = contentElement.value;
-                if (!content) return;
-
-                try {
-                    // This will now call your `sp_create_comment` procedure
-                    const response = await fetch(`${API_BASE_URL}/posts/${post_id}/comments`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            user_id: CURRENT_USER_ID,
-                            content: content
-                        })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to post comment');
-                    }
-                    
-                    contentElement.value = '';
-                    showPostDetails(post_id); 
-
-                } catch (error) {
-                    console.error("Failed to post comment:", error);
-                    alert("Error: Could not post your comment.");
+            try {
+                const response = await fetch(`${API_BASE_URL}/collections/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: newName,
+                        user_id: CURRENT_USER_ID
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to create collection');
                 }
+                
+                // Success! Clear the input and refresh the list
+                newCollectionNameInput.value = '';
+                fetchCollectionsAndStatus(); // Refresh to show new collection
+                
+            } catch (error) {
+                console.error(error);
+                alert(error.message);
             }
-
-            fetchPosts();
         });
-    </script>
 
+        // --- Initial Page Load ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const postIdFromUrl = urlParams.get('post_id');
+        
+        if (postIdFromUrl) {
+            showPostDetails(postIdFromUrl);
+        } else {
+            fetchPosts();
+        }
+    });
+</script>
+<div id="bookmark-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+    <div onclick="closeBookmarkModal()" class="absolute inset-0 bg-black/50"></div>
+    
+    <div class="relative w-full max-w-md bg-white rounded-lg shadow-lg p-6">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">Save to...</h3>
+        
+        <div id="collections-loading" class="text-center">
+             <i class="fas fa-spinner fa-spin text-gray-400"></i>
+        </div>
+        <ul id="collections-list" class="space-y-3 max-h-60 overflow-y-auto mb-4">
+            </ul>
+
+        <form id="create-collection-form" class="flex items-center border-t border-gray-200 pt-4">
+            <input type="text" id="new-collection-name" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg" placeholder="New collection name..." required>
+            <button type="submit" class="ml-3 px-4 py-2 bg-emerald-500 text-white font-semibold rounded-lg hover:bg-emerald-600">
+                Create
+            </button>
+        </form>
+    </div>
+</div>
 </body>
 </html>

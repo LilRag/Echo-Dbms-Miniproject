@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Echo | Sign Up</title>
+    <title>Echo | Log In</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -19,15 +19,10 @@
                 <h1 class="text-3xl font-extrabold text-gray-800">
                     <span class="text-emerald-500">Echo</span>
                 </h1>
-                <h2 class="text-2xl font-bold text-gray-900 mt-4">Create your account</h2>
-                <p class="text-gray-500 mt-1">Join the community.</p>
+                <h2 class="text-2xl font-bold text-gray-900 mt-4">Login to your account</h2>
             </div>
 
-            <form id="signup-form">
-                <div class="mb-5">
-                    <label for="username" class="block text-md font-semibold text-gray-800 mb-2">Username</label>
-                    <input type="text" id="username" name="username" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" required>
-                </div>
+            <form id="login-form">
 
                 <div class="mb-5">
                     <label for="email" class="block text-md font-semibold text-gray-800 mb-2">Email</label>
@@ -43,13 +38,13 @@
 
                 <div>
                     <button type="submit" id="submit-button" class="w-full px-6 py-3 rounded-lg bg-emerald-500 text-white text-lg font-semibold hover:bg-emerald-600 transition-colors">
-                        Sign Up
+                        Log In
                     </button>
                 </div>
 
                 <p class="text-center text-gray-500 mt-6">
-                    Already have an account? 
-                    <a href="login.html" class="font-medium text-emerald-600 hover:text-emerald-700">Log in</a>
+                    Dont't have an account? 
+                    <a href="signup.html" class="font-medium text-emerald-600 hover:text-emerald-700">Sign Up</a>
                 </p>
             </form>
         </main>
@@ -57,64 +52,51 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const signupForm = document.getElementById('signup-form');
+            const loginForm = document.getElementById('login-form');
             const statusMessage = document.getElementById('status-message');
             const submitButton = document.getElementById('submit-button');
             const API_BASE_URL = 'http://127.0.0.1:8000';
 
-            signupForm.addEventListener('submit', async (e) => {
+            loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
-                const username = document.getElementById('username').value;
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
 
                 // Disable button
                 submitButton.disabled = true;
-                submitButton.textContent = 'Creating account...';
+                submitButton.textContent = 'Logging in... ';
                 statusMessage.classList.add('hidden');
 
                 try {
-                    const response = await fetch(`${API_BASE_URL}/users/`, {
+                    const response = await fetch(`${API_BASE_URL}/login`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            username: username,
                             email: email,
                             password: password 
                         })
                     });
 
-                    // ADD THESE LINES TO SEE THE RAW RESPONSE
-                    const rawText = await response.text();
-                    console.log('Raw response:', rawText);
-                    console.log('Response status:', response.status);
-                    
-                    // Try to parse it as JSON
-                    let data;
-                    try {
-                        data = JSON.parse(rawText);
-                    } catch (e) {
-                        throw new Error(`Server returned invalid JSON: ${rawText.substring(0, 100)}`);
-                    }
-                    
                     if (!response.ok) {
-                        throw new Error(data.detail || 'Failed to create account');
+                        const errorData = await response.json();
+                        // FastAPI validation error is often in errorData.detail
+                        throw new Error(errorData.detail || 'Failed to create account');
                     }
-
-
 
                     // Success
+                    const user = await response.json();
                     statusMessage.innerHTML = `
                         <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
-                            <strong>Success!</strong> Your account has been created. Redirecting to login...
+                            <strong>Success!</strong> Welcome back, ${user.username}.
                         </div>`;
                     statusMessage.classList.remove('hidden');
-                    signupForm.reset();
+                    localStorage.setItem('current_user_id', user.user_id);
+                    localStorage.setItem('current_username', user.username);
                     
                     // Redirect to the login page (which we'll create next)
                     setTimeout(() => {
-                        window.location.href = 'login.html';
+                        window.location.href = 'index.html';
                     }, 2000);
 
                 } catch (error) {
@@ -126,7 +108,7 @@
                     
                     // Re-enable button
                     submitButton.disabled = false;
-                    submitButton.textContent = 'Sign Up';
+                    submitButton.textContent = 'Log In';
                 }
             });
         });
