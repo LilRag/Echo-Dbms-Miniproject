@@ -1,4 +1,4 @@
-from . import schemas
+import schemas
 from passlib.context import CryptContext
 
 # Hashing setup remains the same
@@ -6,16 +6,25 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_password_hash(password: str):
     """Hashes a plain-text password."""
+    # Simply truncate the string if it's longer than 72 characters
+    if len(password) > 72:
+        password = password[:72]
+    
+    return pwd_context.hash(password)
 
-    # Encode the string to bytes to check its byte length
-    password_bytes = password.encode('utf-8')
 
-    # Truncate the byte string to 72 bytes if it's too long
-    if len(password_bytes) > 72:
-        password_bytes = password_bytes[:72]
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verifies a plain-text password against a hashed password."""
+    # Truncate if too long
+    if len(plain_password) > 72:
+        plain_password = plain_password[:72]
+    
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception as e:
+        print(f"Password verification error: {e}")
+        return False
 
-    # Hash the (potentially truncated) byte string
-    return pwd_context.hash(password_bytes)
 # --- User CRUD Functions ---
 # (MODIFIED: Accepts cursor, no 'with' block, no 'commit')
 def create_user(cursor, user: schemas.UserCreate):

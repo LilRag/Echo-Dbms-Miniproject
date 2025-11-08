@@ -364,3 +364,413 @@ BEGIN
 END; //
 
 DELIMITER ;
+
+DELIMITER //
+-- Procedure 1: Get all profile details for a user
+CREATE PROCEDURE `sp_get_user_profile`(IN p_user_id INT)
+BEGIN
+    SELECT
+        u.user_id,
+        u.username,
+        u.email,
+        u.created_at,
+        get_user_post_count(p_user_id) AS post_count,
+        get_user_follower_count(p_user_id) AS follower_count,
+        get_user_following_count(p_user_id) AS following_count
+    FROM `users` u
+    WHERE u.user_id = p_user_id;
+END; //
+
+-- Procedure 2: Get all posts for a specific user
+CREATE PROCEDURE `sp_get_user_posts`(
+    IN p_user_id INT, 
+    IN p_limit INT, 
+    IN p_offset INT
+)
+BEGIN
+    SELECT
+        p.post_id, p.title, p.content, p.created_at,
+        p.user_id, p.likes_count, p.views_count, p.comments_count
+    FROM `posts` p
+    WHERE p.user_id = p_user_id
+    ORDER BY p.created_at DESC
+    LIMIT p_limit
+    OFFSET p_offset;
+END; //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+-- Procedure 1: Check if a follow relationship exists
+CREATE PROCEDURE `sp_check_follow`(
+    IN p_follower_id INT,
+    IN p_followed_id INT
+)
+BEGIN
+    SELECT EXISTS(
+        SELECT 1
+        FROM `follows`
+        WHERE `follower_id` = p_follower_id AND `followed_id` = p_followed_id
+    ) AS is_following;
+END; //
+
+-- Procedure 2: Toggle a follow relationship
+CREATE PROCEDURE `sp_toggle_follow`(
+    IN p_follower_id INT,
+    IN p_followed_id INT
+)
+BEGIN
+    DECLARE v_following BOOLEAN;
+
+    -- Check if the relationship already exists
+    IF EXISTS(SELECT 1 FROM `follows` WHERE `follower_id` = p_follower_id AND `followed_id` = p_followed_id) THEN
+        -- Unfollow
+        DELETE FROM `follows`
+        WHERE `follower_id` = p_follower_id AND `followed_id` = p_followed_id;
+        SET v_following = FALSE;
+    ELSE
+        -- Follow
+        INSERT INTO `follows` (follower_id, followed_id)
+        VALUES (p_follower_id, p_followed_id);
+        SET v_following = TRUE;
+    END IF;
+
+    -- Return the new state and the new follower count
+    SELECT
+        v_following AS is_following,
+        get_user_follower_count(p_followed_id) AS new_follower_count;
+END; //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+-- Procedure 1: Check if a follow relationship exists
+CREATE PROCEDURE `sp_check_follow`(
+    IN p_follower_id INT,
+    IN p_followed_id INT
+)
+BEGIN
+    SELECT EXISTS(
+        SELECT 1
+        FROM `follows`
+        WHERE `follower_id` = p_follower_id AND `followed_id` = p_followed_id
+    ) AS is_following;
+END; //
+
+-- Procedure 2: Toggle a follow relationship
+CREATE PROCEDURE `sp_toggle_follow`(
+    IN p_follower_id INT,
+    IN p_followed_id INT
+)
+BEGIN
+    DECLARE v_following BOOLEAN;
+
+    -- Check if the relationship already exists
+    IF EXISTS(SELECT 1 FROM `follows` WHERE `follower_id` = p_follower_id AND `followed_id` = p_followed_id) THEN
+        -- Unfollow
+        DELETE FROM `follows`
+        WHERE `follower_id` = p_follower_id AND `followed_id` = p_followed_id;
+        SET v_following = FALSE;
+    ELSE
+        -- Follow
+        INSERT INTO `follows` (follower_id, followed_id)
+        VALUES (p_follower_id, p_followed_id);
+        SET v_following = TRUE;
+    END IF;
+
+    -- Return the new state and the new follower count
+    SELECT
+        v_following AS is_following,
+        get_user_follower_count(p_followed_id) AS new_follower_count;
+END; //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+-- Procedure 1: Check if a follow relationship exists
+CREATE PROCEDURE `sp_check_follow`(
+    IN p_follower_id INT,
+    IN p_followed_id INT
+)
+BEGIN
+    SELECT EXISTS(
+        SELECT 1
+        FROM `follows`
+        WHERE `follower_id` = p_follower_id AND `followed_id` = p_followed_id
+    ) AS is_following;
+END; //
+
+-- Procedure 2: Toggle a follow relationship
+CREATE PROCEDURE `sp_toggle_follow`(
+    IN p_follower_id INT,
+    IN p_followed_id INT
+)
+BEGIN
+    DECLARE v_following BOOLEAN;
+
+    -- Check if the relationship already exists
+    IF EXISTS(SELECT 1 FROM `follows` WHERE `follower_id` = p_follower_id AND `followed_id` = p_followed_id) THEN
+        -- Unfollow
+        DELETE FROM `follows`
+        WHERE `follower_id` = p_follower_id AND `followed_id` = p_followed_id;
+        SET v_following = FALSE;
+    ELSE
+        -- Follow
+        INSERT INTO `follows` (follower_id, followed_id)
+        VALUES (p_follower_id, p_followed_id);
+        SET v_following = TRUE;
+    END IF;
+
+    -- Return the new state and the new follower count
+    SELECT
+        v_following AS is_following,
+        get_user_follower_count(p_followed_id) AS new_follower_count;
+END; //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE `sp_get_home_feed`(IN p_user_id INT, IN p_limit INT, IN p_offset INT)
+BEGIN
+    SELECT
+        p.post_id, p.title, p.content, p.created_at,
+        p.user_id, p.likes_count, p.views_count, p.comments_count,
+        u.username, u.email AS user_email, u.created_at AS user_created_at
+    FROM `posts` p
+    JOIN `users` u ON p.user_id = u.user_id
+    WHERE p.user_id IN (
+        -- Get all users that p_user_id is following
+        SELECT `followed_id` FROM `follows` WHERE `follower_id` = p_user_id
+    )
+    ORDER BY p.created_at DESC
+    LIMIT p_limit
+    OFFSET p_offset;
+END; //
+
+DELIMITER ;
+
+DELIMITER //
+
+-- Procedure 1: Search Posts by title or content
+CREATE PROCEDURE `sp_search_posts`(IN p_search_term VARCHAR(255))
+BEGIN
+    SET @search_like = CONCAT('%', p_search_term, '%');
+    
+    SELECT
+        p.post_id, p.title, p.content, p.created_at,
+        p.user_id, p.likes_count, p.views_count, p.comments_count,
+        u.username
+    FROM `posts` p
+    JOIN `users` u ON p.user_id = u.user_id
+    WHERE p.title LIKE @search_like OR p.content LIKE @search_like
+    ORDER BY p.created_at DESC
+    LIMIT 10;
+END; //
+
+-- Procedure 2: Search Users by username
+CREATE PROCEDURE `sp_search_users`(IN p_search_term VARCHAR(255))
+BEGIN
+    SET @search_like = CONCAT('%', p_search_term, '%');
+    
+    SELECT
+        user_id,
+        username,
+        email,
+        created_at
+    FROM `users`
+    WHERE username LIKE @search_like
+    LIMIT 10;
+END; //
+
+-- Procedure 3: Search Tags (Categories) by name
+CREATE PROCEDURE `sp_search_tags`(IN p_search_term VARCHAR(255))
+BEGIN
+    SET @search_like = CONCAT('%', p_search_term, '%');
+    
+    SELECT
+        category_id,
+        name,
+        (SELECT COUNT(*) FROM post_categories pc WHERE pc.category_id = c.category_id) AS post_count
+    FROM `categories` c
+    WHERE name LIKE @search_like
+    ORDER BY post_count DESC
+    LIMIT 10;
+END; //
+
+DELIMITER ; 
+
+DELIMITER //
+
+CREATE PROCEDURE `sp_create_post`(
+    IN p_user_id INT,
+    IN p_title VARCHAR(255),
+    IN p_content TEXT,
+    IN p_categories_csv TEXT
+)
+BEGIN
+    DECLARE v_post_id INT;
+    DECLARE v_category_name VARCHAR(100);
+    DECLARE v_category_id INT;
+    DECLARE v_index INT DEFAULT 1;
+    DECLARE v_comma_pos INT;
+    DECLARE v_csv_len INT;
+
+    -- 1. Create the post
+    INSERT INTO `posts` (user_id, title, content)
+    VALUES (p_user_id, p_title, p_content);
+    
+    SET v_post_id = LAST_INSERT_ID();
+
+    -- 2. Process and link categories
+    IF p_categories_csv IS NOT NULL AND LENGTH(p_categories_csv) > 0 THEN
+        -- Add a trailing comma to make the loop simpler
+        SET p_categories_csv = CONCAT(p_categories_csv, ',');
+        SET v_csv_len = LENGTH(p_categories_csv);
+
+        WHILE v_index <= v_csv_len DO
+            -- Find the next comma
+            SET v_comma_pos = INSTR(SUBSTRING(p_categories_csv, v_index), ',');
+            
+            IF v_comma_pos > 0 THEN
+                -- Extract the tag name
+                SET v_category_name = LTRIM(RTRIM(SUBSTRING(p_categories_csv, v_index, v_comma_pos - 1)));
+                
+                -- Only process non-empty tags
+                IF LENGTH(v_category_name) > 0 THEN
+                    
+                    -- 3. Find or create the category
+                    -- Use INSERT IGNORE to safely add the tag if it's new
+                    INSERT IGNORE INTO `categories` (`name`) VALUES (v_category_name);
+                    
+                    -- Get the ID of that category
+                    SELECT `category_id` INTO v_category_id FROM `categories` WHERE `name` = v_category_name;
+                    
+                    -- 4. Link the post to the category
+                    IF v_category_id IS NOT NULL THEN
+                        -- Use INSERT IGNORE to avoid duplicate links
+                        INSERT IGNORE INTO `post_categories` (`post_id`, `category_id`)
+                        VALUES (v_post_id, v_category_id);
+                    END IF;
+                END IF;
+                
+                -- Move the index to the character after the comma
+                SET v_index = v_index + v_comma_pos;
+            ELSE
+                -- No more commas, exit the loop
+                SET v_index = v_csv_len + 1;
+            END IF;
+        END WHILE;
+    END IF;
+
+    -- 5. Return the newly created post
+    SELECT
+        p.*,
+        u.username,
+        u.email AS user_email
+    FROM `posts` p
+    JOIN `users` u ON p.user_id = u.user_id
+    WHERE p.post_id = v_post_id;
+END; //
+DELIMITER ;
+
+
+DELIMITER //
+
+-- Procedure 1: Get all collections for a user
+CREATE PROCEDURE `sp_get_user_collections`(IN p_user_id INT)
+BEGIN
+    SELECT 
+        collection_id,
+        name,
+        user_id,
+        created_at,
+        (SELECT COUNT(*) FROM bookmarks b WHERE b.collection_id = c.collection_id) AS post_count
+    FROM `collections` c
+    WHERE user_id = p_user_id
+    ORDER BY name ASC;
+END; //
+
+-- Procedure 2: Create a new collection for a user
+-- (Replaces the old crud.py function)
+CREATE PROCEDURE `sp_create_collection`(
+    IN p_user_id INT,
+    IN p_name VARCHAR(100)
+)
+BEGIN
+    -- The UNIQUE KEY in your table will prevent duplicates
+    INSERT INTO `collections` (user_id, name)
+    VALUES (p_user_id, p_name);
+    
+    -- Return the new collection
+    SELECT * FROM `collections` WHERE collection_id = LAST_INSERT_ID();
+END; //
+
+-- Procedure 3: Add a bookmark (save a post to a collection)
+-- (Replaces the old crud.py function)
+CREATE PROCEDURE `sp_add_bookmark`(
+    IN p_user_id INT,
+    IN p_post_id INT,
+    IN p_collection_id INT
+)
+BEGIN
+    -- The PRIMARY KEY in your table will prevent duplicates
+    INSERT IGNORE INTO `bookmarks` (user_id, post_id, collection_id)
+    VALUES (p_user_id, p_post_id, p_collection_id);
+    
+    -- Return the new bookmark
+    SELECT * FROM `bookmarks`
+    WHERE user_id = p_user_id AND post_id = p_post_id AND collection_id = p_collection_id;
+END; //
+
+-- Procedure 4: Remove a bookmark
+CREATE PROCEDURE `sp_remove_bookmark`(
+    IN p_user_id INT,
+    IN p_post_id INT,
+    IN p_collection_id INT
+)
+BEGIN
+    DELETE FROM `bookmarks`
+    WHERE user_id = p_user_id AND post_id = p_post_id AND collection_id = p_collection_id;
+    
+    SELECT 'bookmark_removed' AS status;
+END; //
+
+-- Procedure 5: Check which collections a post is saved in
+CREATE PROCEDURE `sp_check_bookmark_status`(
+    IN p_user_id INT,
+    IN p_post_id INT
+)
+BEGIN
+    -- Returns a list of collection IDs this post is bookmarked in
+    SELECT collection_id
+    FROM `bookmarks`
+    WHERE user_id = p_user_id AND post_id = p_post_id;
+END; //
+
+-- Procedure 6: Get all posts saved in a specific collection
+CREATE PROCEDURE `sp_get_posts_in_collection`(
+    IN p_user_id INT,
+    IN p_collection_id INT
+)
+BEGIN
+    SELECT
+        p.post_id, p.title, p.content, p.created_at,
+        p.user_id, p.likes_count, p.views_count, p.comments_count,
+        u.username
+    FROM `posts` p
+    JOIN `users` u ON p.user_id = u.user_id
+    JOIN `bookmarks` b ON p.post_id = b.post_id
+    WHERE b.user_id = p_user_id AND b.collection_id = p_collection_id
+    ORDER BY b.created_at DESC;
+END; //
+
+DELIMITER ;
+
