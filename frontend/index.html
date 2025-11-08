@@ -34,6 +34,23 @@
         .modal-open {
             overflow: hidden; /* Prevents background scrolling when modal is open */
         }
+        /* In index.html, inside the <style> tag */
+        .tag {
+            display: inline-block;
+            background-color: #ecfdf5; /* Green 50 */
+            color: #059669; /* Green 600 */
+            font-size: 0.75rem; /* 12px */
+            font-weight: 500;
+            padding: 0.25rem 0.75rem; /* 4px 12px */
+            border-radius: 9999px; /* full pill shape */
+            margin-right: 0.5rem;
+            margin-top: 0.5rem;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+        .tag:hover {
+            background-color: #d1fae5; /* Green 100 */
+        }
 
         /* Style for the collection list items */
         #collections-list li label {
@@ -113,7 +130,7 @@
         </div>
     </div>
 
-   <script>
+  <script>
     document.addEventListener('DOMContentLoaded', () => {
         
         const API_BASE_URL = 'http://127.0.0.1:8000';
@@ -125,15 +142,17 @@
         const postDetailContainer = document.getElementById('post-detail-container');
         const feedHeader = document.getElementById('feed-header');
         
-        // --- NEW: Modal Selectors ---
+        // --- Modal Selectors ---
         const bookmarkModal = document.getElementById('bookmark-modal');
         const collectionsList = document.getElementById('collections-list');
         const collectionsLoading = document.getElementById('collections-loading');
         const createCollectionForm = document.getElementById('create-collection-form');
         const newCollectionNameInput = document.getElementById('new-collection-name');
+        const saveBookmarksBtn = document.getElementById('save-bookmarks-btn');
         
-        // --- NEW: Global state for the modal ---
+        // --- Global state for the modal ---
         let currentPostIdToBookmark = null;
+        let initialBookmarkedIds = new Set();
 
 
         // --- Post Feed Functions ---
@@ -152,7 +171,7 @@
             } catch (error) {
                 console.error("Failed to fetch posts:", error);
                 loadingIndicator.style.display = 'none';
-                postsContainer.innerHTML = `<p class="text-red-500 text-center">Your feed is empty. Follow users to see their posts here!</p>`;
+                postsContainer.innerHTML = `<p class="text-red-500 text-center">Your feed is empty. Follow users on the Explore page to see their posts here!</p>`;
             }
         }
 
@@ -173,6 +192,15 @@
                 });
                 const username = post.username || 'Unknown';
                 
+                // --- Build Tags HTML ---
+                let tagsHTML = '';
+                if (post.categories) {
+                    const tags = post.categories.split(',');
+                    tags.forEach(tag => {
+                        tagsHTML += `<a href="explore.html?q=${encodeURIComponent(tag)}" class="tag">#${tag}</a>`;
+                    });
+                }
+                
                 postElement.innerHTML = `
                     <div class="flex items-center mb-4">
                         <div class="bg-gray-100 h-11 w-11 rounded-full flex items-center justify-center font-bold text-emerald-500 text-lg">
@@ -189,6 +217,10 @@
                        ${post.title}
                     </a>
                     
+                    <div class="mt-2 flex flex-wrap">
+                        ${tagsHTML}
+                    </div>
+
                     <p class="mt-3 text-gray-600 leading-relaxed">${post.content.substring(0, 150)}...</p>
                     
                     <div class="mt-5 flex items-center text-gray-500 text-sm space-x-6 border-t border-gray-200 pt-4">
@@ -254,8 +286,6 @@
         }
         
         function displayPostDetails(post, comments) {
-            // (Your existing displayPostDetails function... no changes needed here)
-            // (It just needs to be included in the script)
             const postDate = new Date(post.created_at).toLocaleDateString('en-US', {
                 year: 'numeric', month: 'long', day: 'numeric'
             });
@@ -264,12 +294,31 @@
             const likeIconClass = isLiked ? 'fas fa-heart text-red-500' : 'far fa-heart';
             const likeButtonClass = isLiked ? 'text-red-500' : 'hover:text-red-500';
             const username = post.username || 'Unknown';
+            
+            // Build Tags HTML
+            let tagsHTML = '';
+            if (post.categories) {
+                const tags = post.categories.split(',');
+                tags.forEach(tag => {
+                    tagsHTML += `<a href="explore.html?q=${encodeURIComponent(tag)}" class="tag">#${tag}</a>`;
+                });
+            }
 
             let postHTML = `
                 <div>
-                    <button onclick="showMainFeed()" class="mb-6 text-emerald-600 hover:text-emerald-800 font-medium">
-                        <i class="fas fa-arrow-left mr-2"></i> Back to all posts
-                    </button>
+                    <div class="flex justify-between items-center mb-6">
+                        <button onclick="showMainFeed()" class="text-emerald-600 hover:text-emerald-800 font-medium">
+                            <i class="fas fa-arrow-left mr-2"></i> Back to all posts
+                        </button>
+                        
+                        ${post.user_id == CURRENT_USER_ID ? `
+                            <button onclick="handleDeletePost(${post.post_id}, '${post.title.replace(/'/g, "\\'")}')" 
+                                    class="px-4 py-2 rounded-lg bg-red-50 text-red-700 font-semibold hover:bg-red-100">
+                                <i class="fas fa-trash-alt mr-2"></i> Delete Post
+                            </button>
+                        ` : ''}
+                    </div>
+
                     <div class="flex items-center mb-4">
                         <div class="bg-gray-100 h-11 w-11 rounded-full flex items-center justify-center font-bold text-emerald-500 text-lg">
                             ${username.charAt(0).toUpperCase()}
@@ -279,10 +328,17 @@
                             <p class="text-sm text-gray-500">${postDate}</p>
                         </div>
                     </div>
+                    
                     <h1 class="text-4xl font-extrabold text-gray-900 leading-tight mb-4">${post.title}</h1>
-                    <div classs="text-gray-700 text-lg leading-relaxed space-y-4">
+                    
+                    <div class="mt-2 flex flex-wrap">
+                        ${tagsHTML}
+                    </div>
+
+                    <div classs="text-gray-700 text-lg leading-relaxed space-y-4 mt-4">
                         <p>${post.content.replace(/\n/g, '<br>')}</p>
                     </div>
+                    
                     <div class="mt-8 flex items-center text-gray-500 text-sm space-x-6 border-t border-b border-gray-200 py-4">
                         <button onclick="toggleLike(${post.post_id}, this, true)" 
                                 class="flex items-center transition-colors duration-300 ${likeButtonClass}">
@@ -305,6 +361,7 @@
                 </div>
             `;
             
+            // Add Comment Form
             postHTML += `
                 <div class="mt-8">
                     <h3 class="text-xl font-bold mb-4">Add a Comment</h3>
@@ -317,6 +374,7 @@
                 </div>
             `;
 
+            // Add Comments List
             postHTML += `<div id="comments-list" class="mt-8 space-y-6">`;
             if (comments.length === 0) {
                 postHTML += `<p class="text-gray-500">No comments yet.</p>`;
@@ -346,14 +404,10 @@
             postDetailContainer.innerHTML = postHTML;
         }
 
-        // --- Like & Comment Functions (Unchanged) ---
+        // --- Core Action Functions (Like, Comment, Delete) ---
         window.toggleLike = async function(post_id, buttonElement, isDetailPage) {
             try {
-                const response = await fetch(`${API_BASE_URL}/posts/${post_id}/like`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: CURRENT_USER_ID })
-                });
+                const response = await fetch(`${API_BASE_URL}/posts/${post_id}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: CURRENT_USER_ID }) });
                 if (!response.ok) throw new Error('Like request failed');
                 const result = await response.json(); 
                 const likeState = result[0]; 
@@ -361,13 +415,8 @@
                 countSpan.textContent = likeState.new_count;
                 if (isDetailPage) {
                     const icon = buttonElement.querySelector('i');
-                    if (likeState.liked) {
-                        icon.className = 'fas fa-heart mr-2';
-                        buttonElement.classList.add('text-red-500');
-                    } else {
-                        icon.className = 'far fa-heart mr-2';
-                        buttonElement.classList.remove('text-red-500');
-                    }
+                    if (likeState.liked) { icon.className = 'fas fa-heart mr-2'; buttonElement.classList.add('text-red-500'); }
+                    else { icon.className = 'far fa-heart mr-2'; buttonElement.classList.remove('text-red-500'); }
                 }
             } catch (error) { console.error("Failed to toggle like:", error); }
         }
@@ -378,78 +427,88 @@
             const content = contentElement.value;
             if (!content) return;
             try {
-                const response = await fetch(`${API_BASE_URL}/posts/${post_id}/comments`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: CURRENT_USER_ID, content: content })
-                });
+                const response = await fetch(`${API_BASE_URL}/posts/${post_id}/comments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: CURRENT_USER_ID, content: content }) });
                 if (!response.ok) throw new Error('Failed to post comment');
                 contentElement.value = '';
                 showPostDetails(post_id); 
             } catch (error) { console.error("Failed to post comment:", error); }
         }
-
-        // --- NEW: Bookmark Modal Functions ---
         
-        // 1. Open Modal
+        window.handleDeletePost = async function(post_id, post_title) {
+            if (!confirm(`Are you sure you want to delete this post?\n\n"${post_title}"`)) {
+                return;
+            }
+            try {
+                const response = await fetch(`${API_BASE_URL}/posts/${post_id}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: CURRENT_USER_ID })
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to delete post');
+                }
+                alert('Post deleted successfully.');
+                showMainFeed(); // Go back to home
+            } catch (error) {
+                console.error('Error deleting post:', error);
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // --- Bookmark Modal Functions ---
+        
         window.openBookmarkModal = function(post_id) {
             currentPostIdToBookmark = post_id;
-            collectionsList.innerHTML = ''; // Clear old list
-            collectionsLoading.style.display = 'block'; // Show spinner
+            collectionsList.innerHTML = ''; 
+            collectionsLoading.style.display = 'block';
             bookmarkModal.classList.remove('hidden');
             document.body.classList.add('modal-open');
-            
-            // Fetch collections and check which ones this post is already in
             fetchCollectionsAndStatus();
         }
 
-        // 2. Close Modal
         window.closeBookmarkModal = function() {
             bookmarkModal.classList.add('hidden');
             document.body.classList.remove('modal-open');
             currentPostIdToBookmark = null;
+            initialBookmarkedIds.clear(); 
         }
         
-        // 3. Fetch data for the modal
         async function fetchCollectionsAndStatus() {
             try {
-                // Run both API calls in parallel
                 const [collectionsRes, statusRes] = await Promise.all([
                     fetch(`${API_BASE_URL}/users/${CURRENT_USER_ID}/collections`),
                     fetch(`${API_BASE_URL}/posts/${currentPostIdToBookmark}/bookmark-status?user_id=${CURRENT_USER_ID}`)
                 ]);
                 
-                if (!collectionsRes.ok || !statusRes.ok) {
-                    throw new Error('Failed to load collections');
-                }
+                if (!collectionsRes.ok || !statusRes.ok) throw new Error('Failed to load collections');
                 
                 const collections = await collectionsRes.json();
-                const bookmarkedInIds = await statusRes.json(); // This is a list of IDs, e.g., [1, 5]
+                const bookmarkedInIds = await statusRes.json();
                 
-                renderCollectionsList(collections, bookmarkedInIds);
+                initialBookmarkedIds = new Set(bookmarkedInIds);
+                renderCollectionsList(collections);
 
             } catch (error) {
                 console.error(error);
                 collectionsList.innerHTML = `<p class="text-red-500">Could not load collections.</p>`;
             } finally {
-                collectionsLoading.style.display = 'none'; // Hide spinner
+                collectionsLoading.style.display = 'none';
             }
         }
         
-        // 4. Render the list of collections
-        function renderCollectionsList(collections, bookmarkedInIds) {
-            collectionsList.innerHTML = ''; // Clear list
+        function renderCollectionsList(collections) {
+            collectionsList.innerHTML = '';
             if (collections.length === 0) {
                 collectionsList.innerHTML = `<p class="text-gray-500 text-center">No collections yet.</p>`;
             }
             
             collections.forEach(collection => {
-                const isChecked = bookmarkedInIds.includes(collection.collection_id);
-                
+                const isChecked = initialBookmarkedIds.has(collection.collection_id);
                 const li = document.createElement('li');
                 li.innerHTML = `
                     <label>
-                        <input type="checkbox" onchange="handleCollectionToggle(this, ${collection.collection_id})" ${isChecked ? 'checked' : ''}>
+                        <input type="checkbox" data-collection-id="${collection.collection_id}" ${isChecked ? 'checked' : ''}>
                         <span class="font-medium">${collection.name}</span>
                         <span class="ml-auto text-sm text-gray-500">${collection.post_count} posts</span>
                     </label>
@@ -458,91 +517,88 @@
             });
         }
         
-        // 5. Handle checking/unchecking a collection
-        async function handleCollectionToggle(checkbox, collection_id) {
-            checkbox.disabled = true; // Disable while request is in flight
+        function addBookmark(collectionId) {
+            return fetch(`${API_BASE_URL}/bookmarks/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: CURRENT_USER_ID,
+                    post_id: currentPostIdToBookmark,
+                    collection_id: collectionId
+                })
+            });
+        }
+
+        function removeBookmark(collectionId) {
+            const params = new URLSearchParams({
+                user_id: CURRENT_USER_ID,
+                post_id: currentPostIdToBookmark,
+                collection_id: collectionId
+            });
+            return fetch(`${API_BASE_URL}/bookmarks/?${params}`, { method: 'DELETE' });
+        }
+
+        async function handleSaveBookmarks() {
+            saveBookmarksBtn.disabled = true;
+            saveBookmarksBtn.textContent = 'Saving...';
+            
+            const promises = [];
+            const checkboxes = collectionsList.querySelectorAll('input[type="checkbox"]');
+            
+            checkboxes.forEach(checkbox => {
+                const collectionId = parseFloat(checkbox.dataset.collectionId);
+                const isChecked = checkbox.checked;
+                const wasChecked = initialBookmarkedIds.has(collectionId);
+                
+                if (isChecked && !wasChecked) {
+                    promises.push(addBookmark(collectionId));
+                } else if (!isChecked && wasChecked) {
+                    promises.push(removeBookmark(collectionId));
+                }
+            });
             
             try {
-                const url = `${API_BASE_URL}/bookmarks/`;
-                let method = '';
-                let body = {};
-
-                if (checkbox.checked) {
-                    // Save to collection
-                    method = 'POST';
-                    body = JSON.stringify({
-                        user_id: CURRENT_USER_ID,
-                        post_id: currentPostIdToBookmark,
-                        collection_id: collection_id
-                    });
-                } else {
-                    // Remove from collection
-                    method = 'DELETE';
-                    // We send data in the URL query for a DELETE
-                    const params = new URLSearchParams({
-                        user_id: CURRENT_USER_ID,
-                        post_id: currentPostIdToBookmark,
-                        collection_id: collection_id
-                    });
-                    url = `${API_BASE_URL}/bookmarks/?${params}`;
-                }
-                
-                const response = await fetch(url, {
-                    method: method,
-                    headers: method === 'POST' ? { 'Content-Type': 'application/json' } : {},
-                    body: method === 'POST' ? body : null
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to update bookmark');
-                }
-                
+                await Promise.all(promises);
             } catch (error) {
-                console.error(error);
-                // Revert checkbox on error
-                checkbox.checked = !checkbox.checked;
+                console.error("Failed to save bookmarks:", error);
+                alert("An error occurred while saving. Please try again.");
             } finally {
-                checkbox.disabled = false; // Re-enable
+                saveBookmarksBtn.disabled = false;
+                saveBookmarksBtn.textContent = 'Save';
+                closeBookmarkModal(); 
             }
         }
         
-        // 6. Handle creating a new collection
         createCollectionForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const newName = newCollectionNameInput.value;
             if (!newName) return;
-
             try {
                 const response = await fetch(`${API_BASE_URL}/collections/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: newName,
-                        user_id: CURRENT_USER_ID
-                    })
+                    body: JSON.stringify({ name: newName, user_id: CURRENT_USER_ID })
                 });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to create collection');
-                }
-                
-                // Success! Clear the input and refresh the list
+                if (!response.ok) throw new Error('Failed to create collection');
                 newCollectionNameInput.value = '';
-                fetchCollectionsAndStatus(); // Refresh to show new collection
-                
+                fetchCollectionsAndStatus(); // Refresh list to show new collection
             } catch (error) {
                 console.error(error);
                 alert(error.message);
             }
         });
+        
+        saveBookmarksBtn.addEventListener('click', handleSaveBookmarks);
 
         // --- Initial Page Load ---
         const urlParams = new URLSearchParams(window.location.search);
         const postIdFromUrl = urlParams.get('post_id');
         
         if (postIdFromUrl) {
+            // If a post_id is in the URL, show that post's details
             showPostDetails(postIdFromUrl);
         } else {
+            // Otherwise, just fetch the main feed
             fetchPosts();
         }
     });
@@ -558,13 +614,24 @@
         </div>
         <ul id="collections-list" class="space-y-3 max-h-60 overflow-y-auto mb-4">
             </ul>
-
+            
         <form id="create-collection-form" class="flex items-center border-t border-gray-200 pt-4">
             <input type="text" id="new-collection-name" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg" placeholder="New collection name..." required>
             <button type="submit" class="ml-3 px-4 py-2 bg-emerald-500 text-white font-semibold rounded-lg hover:bg-emerald-600">
                 Create
             </button>
+            
+            
         </form>
+
+        <div class="flex justify border-t border-gray-200 pt-4 mt-4">
+            <button onclick="closeBookmarkModal()" type="button" class="px-5 py-2 rounded-lg bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200">
+                Cancel
+            </button>
+            <button id="save-bookmarks-btn" type="button" class="ml-3 px-5 py-2 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600">
+                Save
+            </button>
+        </div>
     </div>
 </div>
 </body>
