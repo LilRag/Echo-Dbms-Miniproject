@@ -175,3 +175,16 @@ class SearchResults(BaseModel):
     tags: List[TagSearchResult]
 
 
+class Notification(BaseModel):
+    notification_id: int
+    recipient_id: int
+    actor_id: int
+    action_type: str  # 'like', 'comment', or 'follow'
+    target_post_id: Optional[int] = None
+    is_read: bool
+    created_at: datetime
+    actor_username: str
+    post_title: Optional[str] = None
+
+class UnreadCount(BaseModel):
+    unread_count: int

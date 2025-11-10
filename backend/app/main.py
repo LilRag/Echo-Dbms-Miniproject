@@ -529,3 +529,47 @@ def delete_post(post_id: int, delete_request: DeleteRequest, cursor=Depends(get_
         print(f"Error in delete_post: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
     
+@app.get("/users/{user_id}/notifications/unread-count", response_model=schemas.UnreadCount, tags=["Notifications"])
+def get_unread_count(user_id: int, cursor=Depends(get_db)):
+    """
+    Gets the count of unread notifications for a user.
+    """
+    try:
+        cursor.callproc('sp_get_unread_notification_count', [user_id])
+        for result in cursor.stored_results():
+            count = result.fetchone()
+        return count
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/users/{user_id}/notifications", response_model=List[schemas.Notification], tags=["Notifications"])
+def get_notifications(user_id: int, cursor=Depends(get_db)):
+    """
+    Gets the 50 most recent notifications for a user.
+    """
+    try:
+        cursor.callproc('sp_get_user_notifications', [user_id])
+        notifications = []
+        for result in cursor.stored_results():
+            notifications = result.fetchall()
+        return notifications
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/users/{user_id}/notifications/mark-read", tags=["Notifications"])
+def mark_notifications_read(user_id: int, cursor=Depends(get_db)):
+    """
+    Marks all unread notifications for a user as read.
+    """
+    try:
+        cursor.callproc('sp_mark_notifications_as_read', [user_id])
+        for result in cursor.stored_results():
+            status = result.fetchone()
+        return status
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

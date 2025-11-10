@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="app-shell.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo | Notifications</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .sidebar-link.active {
+            background-color: #ecfdf5; /* Green 50 */
+            color: #059669; /* Green 600 */
+            font-weight: 600;
+        }
+        .hidden { display: none; }
+        
+        /* New Notification Item Styles */
+        .notification-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background-color: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            transition: box-shadow 0.2s;
+        }
+        .notification-item:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+        }
+        .notification-item.unread {
+            background-color: #f0fdf4; /* Green 25 */
+            border-color: #bbf7d0; /* Green 200 */
+        }
+        .notification-icon {
+            width: 2.5rem; /* w-10 */
+            height: 2.5rem; /* h-10 */
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        .notification-icon.like { background-color: #fee2e2; color: #ef4444; } /* Red */
+        .notification-icon.comment { background-color: #dbeafe; color: #3b82f6; } /* Blue */
+        .notification-icon.follow { background-color: #ecfdf5; color: #10b981; } /* Green */
+        
+        .notification-content {
+            font-size: 0.875rem; /* text-sm */
+            color: #334155; /* Slate 700 */
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="flex min-h-screen">
+       <div id="sidebar-placeholder"></div>
+
+        <div class="flex-1 p-6 md:p-10">
+            <header class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-900">Notifications</h2>
+                <p class="text-gray-500 mt-1">See your latest activity.</p>
+            </header>
+
+            <main class="max-w-2xl mx-auto">
+                <div id="notifications-container" class="space-y-4">
+                    <div id="loading-indicator" class="text-center py-20">
+                        <i class="fas fa-spinner fa-spin fa-3x text-gray-400"></i>
+                        <p class="text-gray-500 mt-4 text-lg">Loading notifications...</p>
+                    </div>
+                    </div>
+            </main>
+        </div>
+    </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+        const CURRENT_USER_ID = localStorage.getItem('current_user_id');
+
+        const notificationsContainer = document.getElementById('notifications-container');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        
+        // Update sidebar profile link
+        if (CURRENT_USER_ID) {
+            document.getElementById('sidebar-profile-link').href = `profile.html?user_id=${CURRENT_USER_ID}`;
+        } else {
+            // If no one is logged in, redirect
+            window.location.href = 'login.html';
+            return;
+        }
+
+        async function fetchNotifications() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/users/${CURRENT_USER_ID}/notifications`);
+                if (!response.ok) throw new Error('Could not fetch notifications');
+                
+                const notifications = await response.json();
+                renderNotifications(notifications);
+                
+                // After fetching, mark them all as read
+                markAsRead();
+
+            } catch (error) {
+                console.error(error);
+                loadingIndicator.style.display = 'none';
+                notificationsContainer.innerHTML = `<p class="text-red-500 text-center">${error.message}</p>`;
+            }
+        }
+
+        function renderNotifications(notifications) {
+            loadingIndicator.style.display = 'none';
+            notificationsContainer.innerHTML = ''; // Clear container
+
+            if (notifications.length === 0) {
+                notificationsContainer.innerHTML = `<p class="text-center text-gray-500 py-20">You have no notifications yet.</p>`;
+                return;
+            }
+            
+            notifications.forEach(notif => {
+                const item = document.createElement('div');
+                item.className = `notification-item ${!notif.is_read ? 'unread' : ''}`;
+                
+                let iconClass, icon, contentHTML;
+                
+                const actorLink = `<a href="profile.html?user_id=${notif.actor_id}" class="font-bold hover:underline">${notif.actor_username}</a>`;
+                
+                switch (notif.action_type) {
+                    case 'like':
+                        iconClass = 'like';
+                        icon = 'fas fa-heart';
+                        contentHTML = `${actorLink} liked your post <a href="index.html?post_id=${notif.target_post_id}" class="font-bold hover:underline">${notif.post_title || 'a post'}</a>.`;
+                        break;
+                    case 'comment':
+                        iconClass = 'comment';
+                        icon = 'fas fa-comment';
+                        contentHTML = `${actorLink} commented on your post <a href="index.html?post_id=${notif.target_post_id}" class="font-bold hover:underline">${notif.post_title || 'a post'}</a>.`;
+                        break;
+                    case 'follow':
+                        iconClass = 'follow';
+                        icon = 'fas fa-user-plus';
+                        contentHTML = `${actorLink} started following you.`;
+                        break;
+                }
+                
+                item.innerHTML = `
+                    <div class="notification-icon ${iconClass}">
+                        <i class="${icon} fa-lg"></i>
+                    </div>
+                    <div class="notification-content">
+                        ${contentHTML}
+                        <p class="text-xs text-gray-500 mt-1">${new Date(notif.created_at).toLocaleString()}</p>
+                    </div>
+                `;
+                notificationsContainer.appendChild(item);
+            });
+        }
+        
+        async function markAsRead() {
+            try {
+                await fetch(`${API_BASE_URL}/users/${CURRENT_USER_ID}/notifications/mark-read`, {
+                    method: 'POST'
+                });
+            } catch (error) {
+                console.error("Failed to mark notifications as read:", error);
+            }
+        }
+        
+        // Initial load
+        fetchNotifications();
+    });
+</script>
+
+</body>
+</html>

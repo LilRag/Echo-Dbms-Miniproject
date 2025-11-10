@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script src="app-shell.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Echo | User Profile</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -45,33 +46,7 @@
 <body class="text-gray-800">
 
     <div class="flex min-h-screen">
-        <aside class="w-64 flex-shrink-0 bg-white border-r border-gray-200 hidden md:block">
-            <div class="p-6">
-                <h1 class="text-3xl font-extrabold text-gray-800">
-                    <span class="text-emerald-500">Echo</span>
-                </h1>
-            </div>
-            <nav class="mt-6 px-4">
-                <a href="index.html" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg">
-                    <i class="fas fa-home w-6 text-center"></i> <span class="ml-4">Home</span>
-                </a>
-                <a href="explore.html" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg mt-2">
-                    <i class="fas fa-compass w-6 text-center"></i> <span class="ml-4">Explore</span>
-                </a>
-                <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg mt-2">
-                    <i class="fas fa-bell w-6 text-center"></i> <span class="ml-4">Notifications</span>
-                </a>
-                <a href="#" id="sidebar-profile-link" class="sidebar-link flex items-center px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg mt-2">
-                    <i class="fas fa-user w-6 text-center"></i> <span class="ml-4">Profile</span>
-                </a>
-                <div class="border-t my-4"></div>
-            </nav>
-            <div class="px-6 mt-8">
-                <a href="create-post.html" class="block w-full text-center bg-emerald-500 text-white font-semibold px-5 py-3 rounded-lg hover:bg-emerald-600 transition-colors">
-                    New Post
-                </a>
-            </div>
-        </aside>
+        <div id="sidebar-placeholder"></div>
 
         <div class="flex-1 p-6 md:p-10">
             <div id="profile-header" class="max-w-2xl mx-auto mb-8 p-8 bg-white rounded-xl shadow-sm border border-gray-200">

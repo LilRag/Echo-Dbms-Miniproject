@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script src="app-shell.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Echo | Log In</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -43,10 +44,17 @@
                 </div>
 
                 <p class="text-center text-gray-500 mt-6">
-                    Dont't have an account? 
-                    <a href="signup.html" class="font-medium text-emerald-600 hover:text-emerald-700">Sign Up</a>
+                    Don't have an account? 
+                    <a href="signup.html" class="font-medium text-emerald-600 hover:text-emerald-700">Sign up</a>
                 </p>
-            </form>
+
+                <p class="text-center text-gray-500 mt-4">
+                    Or 
+                    <a href="explore.html" class="font-medium text-emerald-600 hover:text-emerald-700">
+                        Explore as a guest
+                    </a>
+                </p>
+                </form>
         </main>
     </div>
 
@@ -91,8 +99,8 @@
                             <strong>Success!</strong> Welcome back, ${user.username}.
                         </div>`;
                     statusMessage.classList.remove('hidden');
-                    localStorage.setItem('current_user_id', user.user_id);
-                    localStorage.setItem('current_username', user.username);
+                    sessionStorage.setItem('current_user_id', user.user_id);
+                    sessionStorage.setItem('current_username', user.username);
                     
                     // Redirect to the login page (which we'll create next)
                     setTimeout(() => {
